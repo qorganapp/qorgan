@@ -70,8 +70,8 @@ export function parseGitleaks(workdir: string, raw: string): SecretFinding[] {
       tool: 'gitleaks',
       ruleId: leak.RuleID,
       severity: Severity.High,
-      title: `${secretKind(leak)} в ${file ?? 'репозитории'}`,
-      description: `Найдено ${all.length} вхожд. в ${files.length} файл(ах) истории git. Значение: ${maskSecret(leak.Secret)}`,
+      title: `${secretKind(leak)} in ${file ?? 'repository'}`,
+      description: `Found ${all.length} occurrence(s) in ${files.length} file(s) across git history. Value: ${maskSecret(leak.Secret)}`,
       filePath: file,
       line: leak.StartLine ?? null,
       fingerprint: fingerprint('secrets', leak.RuleID, secretHash),
@@ -87,7 +87,7 @@ export function parseGitleaks(workdir: string, raw: string): SecretFinding[] {
         validity: 'unknown',
       },
       action:
-        'Отзовите и перевыпустите ключ у провайдера, затем уберите его из кода и истории git (git filter-repo / BFG)',
+        'Revoke and reissue the key with the provider, then remove it from the code and git history (git filter-repo / BFG)',
       [RAW_SECRET]: leak.Secret,
     };
   });

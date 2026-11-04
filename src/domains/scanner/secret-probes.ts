@@ -118,11 +118,11 @@ export async function validateSecrets(
       finding.data.provider = probe.provider;
       if (validity === 'live') {
         finding.severity = Severity.Critical;
-        finding.title = `Действующий ключ ${probe.provider}: ${finding.title}`;
+        finding.title = `Live ${probe.provider} key: ${finding.title}`;
       } else if (validity === 'revoked') {
         finding.severity = Severity.Low;
         finding.action =
-          'Ключ уже отозван. Уберите его из кода, чтобы не путать сканеры и людей';
+          'The key is already revoked. Remove it from the code so it does not confuse scanners and people';
       }
     }),
   );

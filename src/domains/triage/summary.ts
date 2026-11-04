@@ -80,22 +80,22 @@ function toItem(group: SummaryFinding[]): FixNowItem {
     );
     return {
       ...base,
-      title: `${pkg}@${top.data.version as string}: ${group.length} уязвимост(и/ей)`,
+      title: `${pkg}@${top.data.version as string}: ${group.length} vulnerabilities`,
       action: fixed
-        ? `Обновите ${pkg} до ${fixed} или новее — это закроет все ${group.length}`
+        ? `Upgrade ${pkg} to ${fixed} or later — fixes all ${group.length}`
         : top.action,
     };
   }
   if (top.module === ScanModule.Infra) {
     return {
       ...base,
-      title: `${top.data.resource as string}: ${group.length} проблем(ы) конфигурации`,
-      action: `${top.action} (и ещё ${group.length - 1} в этом ресурсе)`,
+      title: `${top.data.resource as string}: ${group.length} misconfigurations`,
+      action: `${top.action} (+${group.length - 1} more in this resource)`,
     };
   }
   return {
     ...base,
-    title: `${top.title} (+${group.length - 1} правил(а))`,
+    title: `${top.title} (+${group.length - 1} more rules)`,
     action: top.action,
   };
 }

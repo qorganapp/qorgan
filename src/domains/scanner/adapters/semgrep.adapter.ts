@@ -97,7 +97,7 @@ export function parseSemgrep(
       tool: 'semgrep',
       ruleId: r.check_id,
       severity,
-      title: truncate(`${rule} в ${file}:${r.start.line}`, 250),
+      title: truncate(`${rule} in ${file}:${r.start.line}`, 250),
       description: r.extra.message,
       filePath: file,
       line: r.start.line,
@@ -119,8 +119,8 @@ export function parseSemgrep(
         fix: r.extra.fix,
       },
       action: r.extra.fix
-        ? `Замените код на: ${truncate(r.extra.fix, 300)}`
-        : `Исправьте ${file}:${r.start.line} — ${firstSentence(r.extra.message)}`,
+        ? `Replace the code with: ${truncate(r.extra.fix, 300)}`
+        : `Fix ${file}:${r.start.line} — ${firstSentence(r.extra.message)}`,
     };
   });
 }

@@ -37,7 +37,7 @@ describe('osv-scanner', () => {
     const lodash = findings.find(
       (f) => f.data.package === 'lodash' && f.data.fixedVersion,
     );
-    expect(lodash?.action).toMatch(/^Обновите lodash до \d/);
+    expect(lodash?.action).toMatch(/^Upgrade lodash to \d/);
   });
 
   it('produces unique fingerprints', () => {
@@ -102,7 +102,7 @@ describe('gitleaks', () => {
   it('finds the token from git history and masks it', () => {
     expect(findings).toHaveLength(1);
     const [f] = findings;
-    expect(f.title).toBe('GitHub Personal Access Token в src/config.ts');
+    expect(f.title).toBe('GitHub Personal Access Token in src/config.ts');
     expect(f).toMatchObject({
       ruleId: 'github-pat',
       filePath: 'src/config.ts',

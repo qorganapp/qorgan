@@ -73,7 +73,7 @@ export function parseCheckov(
           publicExposure: isPublicExposure(c.check_name),
           endLine: c.file_line_range?.[1],
         },
-        action: `Исправьте ${c.resource ?? file}: ${c.check_name}`,
+        action: `Fix ${c.resource ?? file}: ${c.check_name}`,
       });
     }
   }

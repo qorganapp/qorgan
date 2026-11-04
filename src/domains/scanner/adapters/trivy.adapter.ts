@@ -79,8 +79,8 @@ export function parseTrivyVulns(
           url: v.PrimaryURL,
         },
         action: fixedVersion
-          ? `Обновите ${v.PkgName} до ${fixedVersion} или новее`
-          : `Исправленной версии ${v.PkgName} пока нет — оцените замену пакета`,
+          ? `Upgrade ${v.PkgName} to ${fixedVersion} or later`
+          : `No fixed version of ${v.PkgName} yet — consider replacing the package`,
       });
     }
   }
@@ -121,7 +121,7 @@ export function parseTrivyConfig(
           url: m.PrimaryURL,
           publicExposure: isPublicExposure(m.Title, m.Message, m.Description),
         },
-        action: m.Resolution ?? `Исправьте конфигурацию: ${m.Title}`,
+        action: m.Resolution ?? `Fix the configuration: ${m.Title}`,
       });
     }
   }

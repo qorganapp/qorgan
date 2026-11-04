@@ -78,7 +78,7 @@ export class GithubController {
     }
     await this.github.link(userId, installationId, code);
     res.redirect(
-      `${this.config.get('FRONTEND_URL', 'http://localhost:5173')}/repositories?installed=1`,
+      `${this.config.get('FRONTEND_URL', 'http://localhost:4200')}/repositories?installed=1`,
     );
   }
 

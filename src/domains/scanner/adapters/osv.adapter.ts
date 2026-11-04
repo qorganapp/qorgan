@@ -79,7 +79,7 @@ export function parseOsv(workdir: string, raw: string): NormalizedFinding[] {
           ruleId: vulnId,
           severity,
           title: malicious
-            ? `Вредоносный пакет ${name}@${version}`
+            ? `Malicious package ${name}@${version}`
             : truncate(`${name}@${version}: ${vuln.summary ?? vulnId}`, 250),
           description: vuln.details ?? vuln.summary ?? '',
           filePath: file,
@@ -96,10 +96,10 @@ export function parseOsv(workdir: string, raw: string): NormalizedFinding[] {
             url: `https://osv.dev/vulnerability/${vuln.id}`,
           },
           action: malicious
-            ? `Немедленно удалите ${name} из зависимостей и проверьте машины, где он устанавливался`
+            ? `Remove ${name} immediately and audit every machine where it was installed`
             : fixedVersion
-              ? `Обновите ${name} до ${fixedVersion} или новее`
-              : `Исправленной версии ${name} пока нет — оцените замену пакета или изоляцию уязвимого кода`,
+              ? `Upgrade ${name} to ${fixedVersion} or later`
+              : `No fixed version of ${name} yet — consider replacing the package or isolating the vulnerable code`,
         });
       }
     }

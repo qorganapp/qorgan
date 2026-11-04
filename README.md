@@ -38,11 +38,13 @@ docker compose up --build
 ### GitHub App
 
 Permissions: *Contents: read*, *Metadata: read*. Events: *Push*, *Installation*,
-*Installation repositories*. Webhook URL: `<API>/github/webhook`. Setup URL: `<API>/github/setup`
+*Installation repositories*. Webhook URL: `<API>/api/github/webhook`. Setup URL: `<API>/api/github/setup`
 с включённой опцией **Request user authorization (OAuth) during installation** — по ней API
 проверяет, что установка принадлежит пользователю.
 
 ## API
+
+Все пути — с префиксом `/api`.
 
 | Метод | Путь | |
 |---|---|---|

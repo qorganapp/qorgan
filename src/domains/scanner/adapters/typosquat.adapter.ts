@@ -133,13 +133,13 @@ export class TyposquatAdapter implements ScannerAdapter {
           tool: this.tool,
           ruleId: 'typosquat',
           severity: Severity.Medium,
-          title: `Возможный тайпсквоттинг: «${name}» похож на «${target}»`,
-          description: `Пакет ${name} отличается от популярного ${target} на один символ. Злоумышленники публикуют такие пакеты, рассчитывая на опечатку.`,
+          title: `Possible typosquat: "${name}" looks like "${target}"`,
+          description: `Package ${name} is one character away from the popular ${target}. Attackers publish such packages hoping for a typo.`,
           filePath: file,
           line: null,
           fingerprint: fingerprint('supply_chain', 'typosquat', file, name),
           data: { package: name, lookalikeOf: target, ecosystem },
-          action: `Проверьте, что вам действительно нужен «${name}», а не «${target}»`,
+          action: `Make sure you really meant "${name}" and not "${target}"`,
         });
       }
     }

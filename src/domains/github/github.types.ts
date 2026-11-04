@@ -32,3 +32,16 @@ export interface PushEvent {
   repository: GithubRepo;
   installation?: { id: number };
 }
+
+export interface PullRequestEvent {
+  action: string;
+  number: number;
+  pull_request: {
+    draft: boolean;
+    merged: boolean;
+    head: { sha: string };
+    base: { ref: string };
+    user: { login: string; type: string };
+  };
+  repository: GithubRepo;
+}

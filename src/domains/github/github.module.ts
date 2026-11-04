@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AgentFix } from '../agent/agent-fix.entity';
+import { AgentQueueModule } from '../agent/queue/agent-queue.module';
 import { RepositoriesModule } from '../repositories/repositories.module';
 import { ScansModule } from '../scans/scans.module';
 import { GithubAppService } from './github-app.service';
@@ -10,7 +12,8 @@ import { GithubService } from './github.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([GithubInstallation]),
+    TypeOrmModule.forFeature([GithubInstallation, AgentFix]),
+    AgentQueueModule,
     JwtModule.register({}),
     RepositoriesModule,
     ScansModule,

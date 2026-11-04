@@ -11,6 +11,23 @@
 | **Secret Sweep** (`secrets`) | Ключи и токены в коде и истории git, проверка «живой ли» | gitleaks + `secret-probes.ts` |
 | **Infra Guard** (`infra`) | Terraform / k8s / Dockerfile: публичные бакеты, root, `0.0.0.0/0` | checkov, trivy config |
 
+## AI-агент
+
+Агент работает как security-инженер в команде (`src/domains/agent`):
+
+- **Триаж** — после каждого скана читает код вокруг находок и выносит вердикт (реальная /
+  ложная / нужен контекст, достижимость, критичность для этого репозитория). Уверенные ложные
+  срабатывания скрываются автоматически, приоритеты пересчитываются.
+- **Фиксы через PR** — для подтверждённых пунктов «fix now» готовит минимальное исправление,
+  перезапускает сканер (`verify_fix`) и только после этого открывает PR из ветки `qorgan/fix-*`.
+- **Ревью PR** — на каждый PR сканирует только изменения и оставляет inline-комментарии;
+  никогда не ставит approve.
+- **Журнал** — каждый шаг агента сохраняется (`agent_runs`, `agent_steps`).
+
+LLM подключается через `LlmProvider` (`LLM_PROVIDER`); первая реализация — Anthropic.
+Код репозитория считается недоверенными данными, найденные секреты маскируются до отправки в
+модель, CI-конфигурацию агент менять не может.
+
 ## Архитектура
 
 ```
@@ -37,8 +54,10 @@ docker compose up --build
 
 ### GitHub App
 
-Permissions: *Contents: read*, *Metadata: read*. Events: *Push*, *Installation*,
-*Installation repositories*. Webhook URL: `<API>/api/github/webhook`. Setup URL: `<API>/api/github/setup`
+Permissions: *Contents: read & write*, *Pull requests: read & write*, *Metadata: read*.
+Events: *Push*, *Pull request*, *Installation*, *Installation repositories*.
+Запись нужна только агенту: он пушит ветки `qorgan/fix-*` и пишет ревью; в default-ветку
+не пишет и ничего не мержит. Webhook URL: `<API>/api/github/webhook`. Setup URL: `<API>/api/github/setup`
 с включённой опцией **Request user authorization (OAuth) during installation** — по ней API
 проверяет, что установка принадлежит пользователю.
 

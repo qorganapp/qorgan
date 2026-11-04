@@ -3,7 +3,8 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { AGENT_QUEUE } from '../../../config/redis.config';
 import { AgentFixService } from '../agent-fix.service';
-import { AgentJobName, FixJob } from './agent-jobs';
+import { AgentReviewService } from '../agent-review.service';
+import { AgentJobName, FixJob, ReviewJob } from './agent-jobs';
 
 /** Задачи агента в воркере. По умолчанию по одной: фиксы и ревью тяжёлые и дорогие. */
 @Processor(AGENT_QUEUE, {
@@ -12,7 +13,10 @@ import { AgentJobName, FixJob } from './agent-jobs';
 export class AgentProcessor extends WorkerHost {
   private readonly logger = new Logger(AgentProcessor.name);
 
-  constructor(private readonly fixes: AgentFixService) {
+  constructor(
+    private readonly fixes: AgentFixService,
+    private readonly reviews: AgentReviewService,
+  ) {
     super();
   }
 
@@ -20,6 +24,8 @@ export class AgentProcessor extends WorkerHost {
     switch (job.name) {
       case 'fix':
         return this.fixes.fix(job.data as FixJob);
+      case 'review':
+        return this.reviews.review(job.data as ReviewJob);
       default:
         this.logger.warn(`Unknown agent job ${job.name}`);
     }

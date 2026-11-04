@@ -1,6 +1,8 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AgentFix, AgentFixStatus } from '../agent/agent-fix.entity';
+import { AgentQueue } from '../agent/queue/agent-queue';
 import { RepositoriesService } from '../repositories/repositories.service';
 import { ScanTrigger } from '../scans/scan.entity';
 import { ScansService } from '../scans/scans.service';
@@ -9,6 +11,7 @@ import { GithubInstallation } from './github-installation.entity';
 import {
   InstallationEvent,
   InstallationRepositoriesEvent,
+  PullRequestEvent,
   PushEvent,
 } from './github.types';
 
@@ -22,6 +25,8 @@ export class GithubService {
     private readonly app: GithubAppService,
     private readonly repositories: RepositoriesService,
     private readonly scans: ScansService,
+    private readonly agentQueue: AgentQueue,
+    @InjectRepository(AgentFix) private readonly fixes: Repository<AgentFix>,
   ) {}
 
   listForUser(userId: string) {
@@ -70,6 +75,8 @@ export class GithubService {
         );
       case 'push':
         return this.onPush(payload as PushEvent);
+      case 'pull_request':
+        return this.onPullRequest(payload as PullRequestEvent);
       default:
         this.logger.debug(`Ignoring webhook event ${event}`);
     }
@@ -103,6 +110,48 @@ export class GithubService {
     await this.scans.enqueue(repo, {
       trigger: ScanTrigger.Push,
       commitSha: e.after,
+    });
+  }
+
+  /** PR команды → ревью агентом. Закрытие PR агента → статус его фикса. */
+  private async onPullRequest(e: PullRequestEvent) {
+    const repo = await this.repositories.findByGithubId(e.repository.id);
+    if (!repo?.installation.userId) return;
+
+    if (e.action === 'closed') {
+      await this.fixes.update(
+        {
+          repositoryId: repo.id,
+          prNumber: e.number,
+          status: AgentFixStatus.Open,
+        },
+        {
+          status: e.pull_request.merged
+            ? AgentFixStatus.Merged
+            : AgentFixStatus.Closed,
+        },
+      );
+      return;
+    }
+    if (
+      !['opened', 'synchronize', 'reopened', 'ready_for_review'].includes(
+        e.action,
+      )
+    )
+      return;
+    if (!repo.agentPrReview || e.pull_request.draft) return;
+    // Свои PR агент не ревьюит.
+    if (
+      e.pull_request.user.type === 'Bot' &&
+      e.pull_request.user.login === this.app.botIdentity().name
+    )
+      return;
+
+    await this.agentQueue.review({
+      repositoryId: repo.id,
+      prNumber: e.number,
+      headSha: e.pull_request.head.sha,
+      baseRef: e.pull_request.base.ref,
     });
   }
 

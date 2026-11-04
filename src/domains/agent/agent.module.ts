@@ -10,6 +10,7 @@ import { AgentFixService } from './agent-fix.service';
 import { AgentRun, AgentStep } from './agent-run.entity';
 import { AgentQueueModule } from './queue/agent-queue.module';
 import { AgentRunsService } from './agent-runs.service';
+import { AgentReviewService } from './agent-review.service';
 import { AgentTriageService } from './agent-triage.service';
 import { createLlmProvider } from './llm/llm.factory';
 import { LLM_PROVIDER } from './llm/llm-provider';
@@ -32,6 +33,7 @@ import { LLM_PROVIDER } from './llm/llm-provider';
     AgentRunsService,
     AgentTriageService,
     AgentFixService,
+    AgentReviewService,
   ],
   exports: [
     AgentRunsService,

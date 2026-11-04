@@ -1,0 +1,83 @@
+# Продакшен-стек Qorgan. Образы собирает CI (GitHub Actions) и кладёт в GHCR;
+# сервер только скачивает их. Наружу ничего не открыто — только 127.0.0.1, TLS делает Caddy на хосте.
+name: qorgan
+
+x-backend-env: &backend-env
+  env_file: .env
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-qorgan}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:-qorgan}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-qorgan}"]
+      interval: 10s
+      retries: 10
+    mem_limit: 384m
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 10
+    mem_limit: 128m
+
+  api:
+    image: ghcr.io/qorganapp/qorgan-app-backend/api:${BACKEND_TAG:?BACKEND_TAG is required}
+    restart: unless-stopped
+    <<: *backend-env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      REDIS_URL: redis://redis:6379
+      DB_MIGRATE: "true"
+    ports: ["127.0.0.1:3000:3000"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    mem_limit: 384m
+
+  worker:
+    image: ghcr.io/qorganapp/qorgan-app-backend/worker:${BACKEND_TAG:?BACKEND_TAG is required}
+    restart: unless-stopped
+    <<: *backend-env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      REDIS_URL: redis://redis:6379
+      WORKER_CONCURRENCY: "1"
+      AGENT_CONCURRENCY: "1"
+    volumes: [trivycache:/cache/trivy]
+    tmpfs: ["/tmp:size=3g"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    depends_on:
+      # Схему создаёт API (миграции) — воркер стартует после него.
+      api: { condition: service_healthy }
+    mem_limit: 1280m
+
+  web:
+    image: ghcr.io/qorganapp/qorgan-app/web:${WEB_TAG:?WEB_TAG is required}
+    restart: unless-stopped
+    ports: ["127.0.0.1:8080:8080"]
+    mem_limit: 64m
+
+volumes:
+  pgdata:
+  redisdata:
+  trivycache:

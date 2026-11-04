@@ -58,7 +58,10 @@ describe('runReview', () => {
 
   it('requires a comment unless there are no issues, and has no approve option', async () => {
     const provider = new FakeProvider([
-      call('submit_review', { decision: 'comment', summary: 'Minor notes only.' }),
+      call('submit_review', {
+        decision: 'comment',
+        summary: 'Minor notes only.',
+      }),
       call('submit_review', { decision: 'approve', summary: 'lgtm' }),
       call('submit_review', {
         decision: 'no_issues',

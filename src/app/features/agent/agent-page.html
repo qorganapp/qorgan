@@ -1,0 +1,255 @@
+<header class="hero enter-up">
+  <div class="persona">
+    <app-section-badge [meta]="meta" [size]="64" />
+    @if (status()?.enabled) {
+      <span class="online" title="Agent is active"></span>
+    }
+  </div>
+  <div class="hero-text">
+    <h1>Qorgan Agent</h1>
+    <p class="muted">{{ meta.description }}</p>
+    <p class="model faint">
+      @if (status(); as s) {
+        @if (s.enabled) {
+          <app-icon name="bot" [size]="14" /> Active · <span class="mono">{{ s.model }}</span>
+        } @else {
+          <app-icon name="alert" [size]="14" /> Not configured on this server — set an LLM provider
+          to enable it.
+        }
+      }
+    </p>
+  </div>
+</header>
+
+<div class="layout">
+  <section class="chat glass enter-up" style="animation-delay: 60ms">
+    <header class="chat-head">
+      <div>
+        <h2>Ask your security engineer</h2>
+        <p class="faint">
+          Answers are grounded in {{ repos.selected()?.fullName ?? 'your repository' }}’s code and
+          scan results.
+        </p>
+      </div>
+      @if (conversation()) {
+        <button class="btn btn-sm btn-ghost" type="button" (click)="newChat()">
+          <app-icon name="plus" [size]="14" /> New chat
+        </button>
+      }
+    </header>
+
+    <div class="thread" #thread>
+      @if (!messages().length) {
+        <div class="welcome">
+          <app-section-badge [meta]="meta" [size]="44" />
+          <p>
+            Hi! I triage your findings, open fix PRs and review your team’s pull requests. Ask me
+            anything about the security of this repository.
+          </p>
+          <div class="suggestions">
+            @for (s of suggestions; track s) {
+              <button
+                type="button"
+                class="suggestion"
+                (click)="send(s)"
+                [disabled]="!status()?.enabled"
+              >
+                {{ s }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+      @for (m of messages(); track m.id) {
+        <div class="msg" [attr.data-role]="m.role" animate.enter="enter-up">
+          @if (m.role === 'assistant') {
+            <app-section-badge [meta]="meta" [size]="28" class="avatar" />
+          }
+          <div class="bubble" [attr.data-status]="m.status">
+            @switch (m.status) {
+              @case ('pending') {
+                <span class="typing" aria-label="Agent is thinking"><i></i><i></i><i></i></span>
+                <span class="faint thinking">Reading the code…</span>
+              }
+              @case ('failed') {
+                <app-icon name="alert" [size]="14" /> {{ m.content || 'Something went wrong.' }}
+              }
+              @default {
+                @if (m.role === 'assistant') {
+                  <app-markdown [text]="m.content" />
+                } @else {
+                  {{ m.content }}
+                }
+              }
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <form class="composer" (ngSubmit)="send()">
+      <textarea
+        name="draft"
+        rows="1"
+        [(ngModel)]="draft"
+        (keydown)="onKeydown($event)"
+        [disabled]="!status()?.enabled || !repos.selected()"
+        placeholder="Ask about a finding, a fix, or what to do first…"
+        maxlength="4000"
+      ></textarea>
+      <button
+        class="btn btn-primary send"
+        type="submit"
+        [disabled]="!draft.trim() || sending() || answering() || !status()?.enabled"
+      >
+        <app-icon name="send" [size]="16" /><span class="sr-only">Send</span>
+      </button>
+    </form>
+  </section>
+
+  <aside class="side">
+    <section class="card glass enter-up" style="animation-delay: 120ms">
+      <h3>Skills</h3>
+      @if (repos.selected(); as repo) {
+        <label class="toggle">
+          <span>
+            <strong>Triage every finding</strong>
+            <span class="faint">Read the code, confirm or dismiss scanner results</span>
+          </span>
+          <input
+            type="checkbox"
+            [checked]="repo.agentTriage"
+            (change)="updateSetting('agentTriage', $any($event.target).checked)"
+          />
+          <i aria-hidden="true"></i>
+        </label>
+        <label class="toggle">
+          <span>
+            <strong>Open fix pull requests</strong>
+            <span class="faint">Verified fixes on <code>qorgan/fix-*</code> branches</span>
+          </span>
+          <input
+            type="checkbox"
+            [checked]="repo.agentAutoFix"
+            (change)="updateSetting('agentAutoFix', $any($event.target).checked)"
+          />
+          <i aria-hidden="true"></i>
+        </label>
+        <label class="toggle">
+          <span>
+            <strong>Review team PRs</strong>
+            <span class="faint">Inline comments on new security issues</span>
+          </span>
+          <input
+            type="checkbox"
+            [checked]="repo.agentPrReview"
+            (change)="updateSetting('agentPrReview', $any($event.target).checked)"
+          />
+          <i aria-hidden="true"></i>
+        </label>
+        <div class="stepper">
+          <span><strong>Open PRs at a time</strong></span>
+          <span class="stepper-ctl">
+            <button
+              type="button"
+              class="btn btn-sm"
+              [disabled]="repo.maxOpenAgentPrs <= 0"
+              (click)="updateSetting('maxOpenAgentPrs', repo.maxOpenAgentPrs - 1)"
+            >
+              −
+            </button>
+            <b>{{ repo.maxOpenAgentPrs }}</b>
+            <button
+              type="button"
+              class="btn btn-sm"
+              [disabled]="repo.maxOpenAgentPrs >= 10"
+              (click)="updateSetting('maxOpenAgentPrs', repo.maxOpenAgentPrs + 1)"
+            >
+              +
+            </button>
+          </span>
+        </div>
+        <p class="note faint">
+          <app-icon name="lock" [size]="13" /> The agent never merges and never pushes to
+          {{ repo.defaultBranch }}.
+        </p>
+      }
+    </section>
+
+    <section class="card glass enter-up" style="animation-delay: 160ms">
+      <h3>
+        Pull requests <span class="count">{{ openFixes().length }} open</span>
+      </h3>
+      @for (fix of fixes(); track fix.id) {
+        <a class="pr" [href]="fix.prUrl" target="_blank" rel="noopener noreferrer">
+          <app-icon name="pullRequest" [size]="16" [attr.data-status]="fix.status" />
+          <span class="pr-main">
+            <strong>{{ fix.title }}</strong>
+            <span class="faint"
+              >#{{ fix.prNumber }} · {{ fix.status }} · {{ fix.createdAt | timeAgo }}</span
+            >
+          </span>
+          <app-icon name="external" [size]="13" class="faint" />
+        </a>
+      } @empty {
+        <p class="faint empty">
+          No fix PRs yet. They appear after a Full Sweep finds confirmed issues.
+        </p>
+      }
+    </section>
+
+    <section class="card glass enter-up" style="animation-delay: 200ms">
+      <h3>What I did</h3>
+      <ol class="feed">
+        @for (run of activity(); track run.id) {
+          <li [attr.data-status]="run.status">
+            <button
+              type="button"
+              class="feed-item"
+              (click)="toggleRun(run)"
+              [attr.aria-expanded]="expandedRun()?.id === run.id"
+            >
+              <span class="feed-icon" [attr.data-kind]="run.kind"
+                ><app-icon [name]="kindIcon[run.kind]" [size]="15"
+              /></span>
+              <span class="feed-main">
+                <span class="feed-head">
+                  <strong>{{ runLabel(run) }}</strong>
+                  <span class="faint">{{ run.createdAt | timeAgo }}</span>
+                  @if (run.status !== 'done') {
+                    <span class="chip" [attr.data-status]="run.status">{{
+                      run.status.replace('_', ' ')
+                    }}</span>
+                  }
+                </span>
+                <span class="feed-summary">{{ run.summary || run.title }}</span>
+              </span>
+            </button>
+            @if (prOf(run); as url) {
+              <a class="feed-link" [href]="url" target="_blank" rel="noopener noreferrer"
+                >Open on GitHub <app-icon name="external" [size]="12"
+              /></a>
+            }
+            @if (expandedRun()?.id === run.id) {
+              <div class="steps" animate.enter="enter-fade">
+                @for (step of expandedRun()!.stepLog; track step.id) {
+                  @if (step.text) {
+                    <p class="step-text">{{ step.text }}</p>
+                  }
+                  @for (call of step.toolCalls; track $index) {
+                    <p class="step-call" [class.err]="call.isError">
+                      <code>{{ call.name }}</code>
+                      <span class="faint mono">{{ toolInput(call.input) }}</span>
+                    </p>
+                  }
+                }
+              </div>
+            }
+          </li>
+        } @empty {
+          <li class="faint empty">Nothing yet. Run a Full Sweep and I’ll get to work.</li>
+        }
+      </ol>
+    </section>
+  </aside>
+</div>

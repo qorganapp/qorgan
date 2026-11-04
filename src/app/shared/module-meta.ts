@@ -32,6 +32,15 @@ export const REPOSITORIES: SectionMeta = {
   gradient: ['#4f6bd8', '#8f9dff'],
 };
 
+export const AGENT: SectionMeta = {
+  title: 'Agent',
+  tagline: 'Your AI security engineer',
+  description:
+    'Triages every finding, opens verified fix pull requests, reviews your team’s PRs and answers questions about your security.',
+  icon: 'bot',
+  gradient: ['#00b4a0', '#7c5cff'],
+};
+
 export const MODULES: Record<ScanModule, ModuleMeta> = {
   supply_chain: {
     id: 'supply_chain',

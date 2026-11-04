@@ -11,6 +11,13 @@ import {
   Severity,
 } from '../api/api.types';
 import demo from './demo-scan.json';
+import {
+  applyDemoVerdicts,
+  DEMO_FIXES,
+  demoActivity,
+  demoRunDetails,
+  MockChat,
+} from './mock-agent';
 
 export interface MockRequest {
   method: string;
@@ -35,6 +42,8 @@ const MODULE_DONE_AT: Record<ScanModule, number> = {
 };
 const QUEUED_FOR = 900;
 const SCAN_DURATION = 7200;
+/** После сканеров агент разбирает находки — скан ещё «running». */
+const TRIAGE_FOR = 2600;
 
 const TOOLS: Record<ScanModule, string[]> = {
   supply_chain: ['osv-scanner', 'trivy', 'typosquat'],
@@ -58,8 +67,10 @@ export class MockBackend {
   ];
   private readonly scans: (Scan & { startedMs: number })[] = [];
   private readonly findings = new Map<string, Finding[]>();
+  private readonly chat: MockChat;
 
   constructor(private readonly now: () => number = Date.now) {
+    this.chat = new MockChat(now);
     // У первого репозитория уже есть вчерашний скан — сразу видно экран результатов.
     const yesterday = this.now() - 26 * 3600_000;
     this.createScan('r-shop', yesterday);
@@ -74,6 +85,50 @@ export class MockBackend {
     if (!this.signedIn()) return { status: 401, body: { message: 'Unauthorized' } };
 
     if (method === 'GET' && path === '/api/repositories') return ok(this.repos);
+    if (method === 'GET' && path === '/api/agent/status')
+      return ok({ enabled: true, provider: 'anthropic', model: 'claude-opus-5-5' });
+    if (
+      (m = path.match(
+        /^\/api\/repositories\/([^/]+)\/agent\/(activity|fixes|settings|conversations)$/,
+      ))
+    ) {
+      const repo = this.repos.find((r) => r.id === m![1]);
+      if (!repo) return notFound();
+      switch (m[2]) {
+        case 'activity': {
+          const done = [...this.scans]
+            .reverse()
+            .find((sc) => sc.repositoryId === repo.id && this.publicScan(sc).status === 'done');
+          return ok(demoActivity(repo.id, done ? this.publicScan(done).finishedAt : null));
+        }
+        case 'fixes':
+          return ok(repo.id === 'r-shop' ? DEMO_FIXES : []);
+        case 'settings':
+          Object.assign(repo, req.body as object);
+          return ok(repo);
+        case 'conversations':
+          if (method === 'POST')
+            return ok(this.chat.start(repo.id, (req.body as { content: string }).content));
+          return ok(this.chat.list(repo.id));
+      }
+    }
+    if ((m = path.match(/^\/api\/agent\/conversations\/([^/]+)(\/messages)?$/))) {
+      if (m[2]) {
+        const res = this.chat.post(m[1], (req.body as { content: string }).content);
+        if (res === 'busy')
+          return {
+            status: 409,
+            body: { message: 'The agent is still answering the previous question' },
+          };
+        return res ? ok(res) : notFound();
+      }
+      const conversation = this.chat.get(m[1]);
+      return conversation ? ok(conversation) : notFound();
+    }
+    if ((m = path.match(/^\/api\/agent\/runs\/([^/]+)$/))) {
+      const run = demoActivity('r-shop', iso(this.now())).find((r) => r.id === m![1]);
+      return run ? ok(demoRunDetails(run)) : notFound();
+    }
     if (method === 'GET' && path === '/api/github/installations')
       return ok([
         { id: 'i-1', githubInstallationId: '1', accountLogin: 'qorganapp', createdAt: iso(0) },
@@ -159,7 +214,9 @@ export class MockBackend {
     this.scans.push(scan);
     this.findings.set(
       scan.id,
-      (demo.findings as Finding[]).map((f) => ({ ...f, data: { ...f.data }, status: 'open' })),
+      applyDemoVerdicts(
+        (demo.findings as Finding[]).map((f) => ({ ...f, data: { ...f.data }, status: 'open' })),
+      ),
     );
     return scan;
   }
@@ -185,13 +242,21 @@ export class MockBackend {
     }));
     const { startedMs: _ignored, ...rest } = scan;
     const status =
-      elapsed < QUEUED_FOR ? 'queued' : elapsed < QUEUED_FOR + SCAN_DURATION ? 'running' : 'done';
+      elapsed < QUEUED_FOR
+        ? 'queued'
+        : elapsed < QUEUED_FOR + SCAN_DURATION + TRIAGE_FOR
+          ? 'running'
+          : 'done';
+    const triageStatus =
+      status === 'done' ? 'done' : elapsed >= QUEUED_FOR + SCAN_DURATION ? 'running' : 'pending';
     return {
       ...rest,
       status,
       commitSha: status === 'done' ? '7527a31f4c0d2b9e8a1f6c3d5e7b9a0c2d4e6f81' : null,
       startedAt: status === 'queued' ? null : iso(scan.startedMs + QUEUED_FOR),
-      finishedAt: status === 'done' ? iso(scan.startedMs + QUEUED_FOR + SCAN_DURATION) : null,
+      finishedAt:
+        status === 'done' ? iso(scan.startedMs + QUEUED_FOR + SCAN_DURATION + TRIAGE_FOR) : null,
+      triageStatus,
       moduleRuns,
     };
   }
@@ -210,9 +275,23 @@ export class MockBackend {
       bySeverity[f.severity]++;
       byModule[f.module] = (byModule[f.module] ?? 0) + 1;
     }
+    const byId = new Map(findings.map((f) => [f.id, f]));
     const fixNow = (demo.fixNow as FixNowItem[])
       .map((item) => ({ ...item, findingIds: item.findingIds.filter((id) => openIds.has(id)) }))
-      .filter((item) => item.findingIds.length > 0);
+      .filter((item) => item.findingIds.length > 0)
+      .map((item) => {
+        const verdicts = item.findingIds.map((id) => byId.get(id)?.agentVerdict).filter((x) => !!x);
+        const fix = DEMO_FIXES.find((f) => f.findingIds.some((id) => item.findingIds.includes(id)));
+        return {
+          ...item,
+          agentVerified: verdicts.some((x) => x.verdict === 'true_positive'),
+          agentNote: verdicts[0]?.explanation ?? null,
+          fix: fix ? { prNumber: fix.prNumber, prUrl: fix.prUrl, status: fix.status } : null,
+          // Как в бэкенде: оценка агента (критичность в контексте + достижимость) меняет порядок.
+          score: rescore(item.severity, verdicts[0]),
+        };
+      })
+      .sort((a, b) => b.score - a.score);
     return {
       scanId: scan.id,
       status: scan.status,
@@ -222,6 +301,7 @@ export class MockBackend {
       byModule,
       modules: scan.moduleRuns ?? [],
       fixNow,
+      triageStatus: scan.triageStatus,
     };
   }
 
@@ -250,6 +330,21 @@ export class MockBackend {
   }
 }
 
+const SEVERITY_WEIGHT: Record<Severity, number> = {
+  critical: 100,
+  high: 40,
+  medium: 15,
+  low: 5,
+  info: 1,
+};
+
+function rescore(severity: Severity, verdict?: Finding['agentVerdict']): number {
+  let score = SEVERITY_WEIGHT[verdict?.severity ?? severity];
+  if (verdict?.verdict === 'true_positive' && verdict.reachable === 'yes') score *= 1.5;
+  if (verdict?.reachable === 'no') score *= 0.5;
+  return score;
+}
+
 function repo(id: string, fullName: string, defaultBranch: string, isPrivate: boolean): Repository {
   return {
     id,
@@ -259,6 +354,10 @@ function repo(id: string, fullName: string, defaultBranch: string, isPrivate: bo
     private: isPrivate,
     installationId: 'i-1',
     createdAt: iso(0),
+    agentTriage: true,
+    agentAutoFix: true,
+    agentPrReview: true,
+    maxOpenAgentPrs: 3,
   };
 }
 

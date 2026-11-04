@@ -9,6 +9,19 @@ export const SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'inf
 export type ScanStatus = 'queued' | 'running' | 'done' | 'failed';
 export type ModuleRunStatus = 'done' | 'partial' | 'failed';
 export type FindingStatus = 'open' | 'ignored' | 'fixed';
+export type TriageStatus = 'pending' | 'running' | 'done' | 'skipped' | 'failed';
+
+export interface AgentVerdict {
+  verdict: 'true_positive' | 'false_positive' | 'needs_context';
+  reachable: 'yes' | 'no' | 'unknown';
+  severity: Severity;
+  confidence: 'high' | 'medium' | 'low';
+  explanation: string;
+  exploitScenario?: string;
+  fixHint?: string;
+  runId: string;
+  at: string;
+}
 
 export interface Me {
   id: string;
@@ -23,7 +36,14 @@ export interface GithubInstallation {
   createdAt: string;
 }
 
-export interface Repository {
+export interface AgentSettings {
+  agentTriage: boolean;
+  agentAutoFix: boolean;
+  agentPrReview: boolean;
+  maxOpenAgentPrs: number;
+}
+
+export interface Repository extends AgentSettings {
   id: string;
   githubRepoId: string;
   fullName: string;
@@ -60,6 +80,8 @@ export interface Scan {
   status: ScanStatus;
   trigger: 'manual' | 'push';
   error: string | null;
+  /** Этап разбора находок агентом; null — агент не настроен. */
+  triageStatus?: TriageStatus | null;
   startedAt: string | null;
   finishedAt: string | null;
   createdAt: string;
@@ -80,6 +102,8 @@ export interface Finding {
   action: string;
   status: FindingStatus;
   priorityScore: number;
+  agentVerdict?: AgentVerdict | null;
+  statusReason?: string | null;
 }
 
 export interface Page<T> {
@@ -98,6 +122,9 @@ export interface FixNowItem {
   filePath: string | null;
   score: number;
   findingIds: string[];
+  agentVerified?: boolean;
+  agentNote?: string | null;
+  fix?: { prNumber: number; prUrl: string; status: AgentFixStatus } | null;
 }
 
 export interface ScanSummary {
@@ -109,6 +136,75 @@ export interface ScanSummary {
   byModule: Partial<Record<ScanModule, number>>;
   modules: ModuleRun[];
   fixNow: FixNowItem[];
+  triageStatus?: TriageStatus | null;
+}
+
+export type AgentRunKind = 'triage' | 'fix' | 'review' | 'chat';
+export type AgentRunStatus =
+  'running' | 'done' | 'failed' | 'refused' | 'budget_exceeded' | 'max_steps' | 'skipped';
+export type AgentFixStatus = 'open' | 'merged' | 'closed';
+
+export interface AgentStatus {
+  enabled: boolean;
+  provider: string | null;
+  model: string | null;
+}
+
+export interface AgentRun {
+  id: string;
+  repositoryId: string;
+  kind: AgentRunKind;
+  status: AgentRunStatus;
+  title: string;
+  summary: string;
+  target: Record<string, unknown>;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  steps: number;
+  error: string | null;
+  createdAt: string;
+  finishedAt: string | null;
+}
+
+export interface AgentStep {
+  id: string;
+  index: number;
+  text: string;
+  toolCalls: { name: string; input: unknown; result: string; isError: boolean }[];
+}
+
+export interface AgentRunDetails extends AgentRun {
+  stepLog: AgentStep[];
+}
+
+export interface AgentFix {
+  id: string;
+  module: ScanModule;
+  findingIds: string[];
+  title: string;
+  branch: string;
+  prNumber: number;
+  prUrl: string;
+  status: AgentFixStatus;
+  createdAt: string;
+}
+
+export interface AgentMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  status: 'pending' | 'done' | 'failed';
+  createdAt: string;
+}
+
+export interface AgentConversation {
+  id: string;
+  repositoryId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages?: AgentMessage[];
 }
 
 export interface FindingsQuery {

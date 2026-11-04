@@ -15,6 +15,7 @@ import { RepoContext } from '../../core/state/repo-context';
 import { ScanSession } from '../../core/state/scan-session';
 import { Icon } from '../../shared/icon';
 import {
+  AGENT,
   FULL_SWEEP,
   MODULE_LIST,
   MODULES,
@@ -62,6 +63,7 @@ export class Shell {
     const module = url.match(/^\/modules\/([^/?]+)/)?.[1];
     if (isScanModule(module)) return MODULES[module];
     if (url.startsWith('/repositories')) return REPOSITORIES;
+    if (url.startsWith('/agent')) return AGENT;
     return FULL_SWEEP;
   });
 
@@ -73,6 +75,7 @@ export class Shell {
     ];
   });
   protected readonly reposMeta = REPOSITORIES;
+  protected readonly agentMeta = AGENT;
 
   constructor() {
     this.repos.load();

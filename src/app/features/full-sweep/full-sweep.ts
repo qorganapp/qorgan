@@ -7,7 +7,7 @@ import { RepoContext } from '../../core/state/repo-context';
 import { ModuleProgress, ScanSession } from '../../core/state/scan-session';
 import { Toasts } from '../../core/state/toasts';
 import { Icon } from '../../shared/icon';
-import { FULL_SWEEP, MODULE_LIST, MODULES } from '../../shared/module-meta';
+import { AGENT, FULL_SWEEP, MODULE_LIST, MODULES } from '../../shared/module-meta';
 import { OrbState, ScanOrb } from '../../shared/scan-orb';
 import { SectionBadge } from '../../shared/section-badge';
 import { SeverityBadge } from '../../shared/severity-badge';
@@ -36,6 +36,10 @@ export class FullSweep {
   private readonly router = inject(Router);
 
   protected readonly meta = FULL_SWEEP;
+  protected readonly agentMeta = AGENT;
+  protected readonly agentTriaging = computed(
+    () => this.session.scan()?.triageStatus === 'running',
+  );
   protected readonly modules = MODULE_LIST;
   protected readonly moduleMeta = MODULES;
   protected readonly progressLabel = PROGRESS_LABEL;

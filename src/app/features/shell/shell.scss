@@ -126,6 +126,16 @@ app-section-badge.dim {
 .nav-title {
   flex: 1;
 }
+.agent-item {
+  margin-bottom: 4px;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
+}
 .count {
   min-width: 24px;
   padding: 1px 8px;
@@ -297,6 +307,7 @@ app-section-badge.dim {
   .account,
   .nav-label,
   .nav-title,
+  .live-dot,
   .count {
     display: none;
   }

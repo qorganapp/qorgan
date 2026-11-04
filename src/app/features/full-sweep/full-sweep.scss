@@ -403,3 +403,39 @@ h1 {
     --orb-size: 220px !important;
   }
 }
+
+.agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #00c2a8;
+  background: color-mix(in srgb, #00c2a8 14%, transparent);
+}
+.agent-note {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: var(--glass);
+
+  app-icon {
+    margin-top: 2px;
+    color: #00c2a8;
+  }
+}
+.pr-btn {
+  color: var(--ok);
+  text-decoration: none;
+
+  &[data-status='merged'] {
+    color: #a371f7;
+  }
+}

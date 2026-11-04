@@ -39,6 +39,11 @@ export const routes: Routes = [
         title: moduleTitle,
       },
       {
+        path: 'agent',
+        loadComponent: () => import('./features/agent/agent-page').then((m) => m.AgentPage),
+        title: 'Agent · Qorgan',
+      },
+      {
         path: 'repositories',
         loadComponent: () =>
           import('./features/repositories/repositories-page').then((m) => m.RepositoriesPage),

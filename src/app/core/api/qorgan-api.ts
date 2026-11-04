@@ -2,6 +2,12 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  AgentConversation,
+  AgentFix,
+  AgentRun,
+  AgentRunDetails,
+  AgentSettings,
+  AgentStatus,
   Finding,
   FindingStatus,
   FindingsQuery,
@@ -50,6 +56,60 @@ export class QorganApi {
 
   setFindingStatus(id: string, status: Exclude<FindingStatus, 'fixed'>): Observable<Finding> {
     return this.http.patch<Finding>(`/api/findings/${id}`, { status });
+  }
+
+  agentStatus(): Observable<AgentStatus> {
+    return this.http.get<AgentStatus>('/api/agent/status');
+  }
+
+  agentActivity(repositoryId: string): Observable<AgentRun[]> {
+    return this.http.get<AgentRun[]>(`/api/repositories/${repositoryId}/agent/activity`);
+  }
+
+  agentRun(id: string): Observable<AgentRunDetails> {
+    return this.http.get<AgentRunDetails>(`/api/agent/runs/${id}`);
+  }
+
+  agentFixes(repositoryId: string): Observable<AgentFix[]> {
+    return this.http.get<AgentFix[]>(`/api/repositories/${repositoryId}/agent/fixes`);
+  }
+
+  updateAgentSettings(
+    repositoryId: string,
+    settings: Partial<AgentSettings>,
+  ): Observable<Repository> {
+    return this.http.patch<Repository>(
+      `/api/repositories/${repositoryId}/agent/settings`,
+      settings,
+    );
+  }
+
+  conversations(repositoryId: string): Observable<AgentConversation[]> {
+    return this.http.get<AgentConversation[]>(
+      `/api/repositories/${repositoryId}/agent/conversations`,
+    );
+  }
+
+  conversation(id: string): Observable<AgentConversation> {
+    return this.http.get<AgentConversation>(`/api/agent/conversations/${id}`);
+  }
+
+  startConversation(repositoryId: string, content: string): Observable<AgentConversation> {
+    return this.http.post<AgentConversation>(
+      `/api/repositories/${repositoryId}/agent/conversations`,
+      {
+        content,
+      },
+    );
+  }
+
+  sendMessage(conversationId: string, content: string): Observable<AgentConversation> {
+    return this.http.post<AgentConversation>(
+      `/api/agent/conversations/${conversationId}/messages`,
+      {
+        content,
+      },
+    );
   }
 
   installUrl(): Observable<{ url: string }> {

@@ -141,9 +141,45 @@
         </p>
       }
 
+      @if (f.agentVerdict; as v) {
+        <section class="verdict" [attr.data-verdict]="v.verdict">
+          <p class="label"><app-icon name="bot" [size]="13" /> Agent verdict</p>
+          <div class="verdict-head">
+            <span class="verdict-badge">
+              @switch (v.verdict) {
+                @case ('true_positive') {
+                  <app-icon name="verified" [size]="14" /> Real issue
+                }
+                @case ('false_positive') {
+                  <app-icon name="x" [size]="14" /> False positive
+                }
+                @default {
+                  <app-icon name="alert" [size]="14" /> Needs context
+                }
+              }
+            </span>
+            <span class="faint">Reachable: {{ v.reachable }} · Confidence: {{ v.confidence }}</span>
+            @if (v.severity !== f.severity) {
+              <span class="faint"
+                >· Real severity: <b>{{ v.severity }}</b></span
+              >
+            }
+          </div>
+          <p>{{ v.explanation }}</p>
+          @if (v.exploitScenario) {
+            <p class="exploit"><b>Exploit:</b> {{ v.exploitScenario }}</p>
+          }
+        </section>
+      }
+      @if (f.statusReason) {
+        <p class="status-reason faint">
+          <app-icon name="eyeOff" [size]="13" /> {{ f.statusReason }}
+        </p>
+      }
+
       <section class="fix-box">
         <p class="label">How to fix</p>
-        <p>{{ f.action }}</p>
+        <p>{{ f.agentVerdict?.fixHint || f.action }}</p>
       </section>
 
       @if (snippet(); as code) {

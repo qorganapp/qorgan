@@ -93,4 +93,17 @@ describe('ScanSession', () => {
     session.open('r1');
     expect(api.scans).toHaveBeenCalledTimes(1);
   });
+
+  it('counts agent triage as a progress step', () => {
+    api.scans.mockReturnValue(
+      of([
+        scan('running', {
+          triageStatus: 'running',
+          moduleRuns: [{ module: 'supply_chain' } as never, { module: 'secrets' } as never],
+        }),
+      ]),
+    );
+    session.open('r1');
+    expect(session.progress()).toBeCloseTo(2 / 3);
+  });
 });

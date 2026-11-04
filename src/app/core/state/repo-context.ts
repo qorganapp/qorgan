@@ -33,6 +33,11 @@ export class RepoContext {
     });
   }
 
+  /** Обновлённый репозиторий (например, после смены настроек агента). */
+  replace(repo: Repository): void {
+    this.repositories.update((list) => list.map((r) => (r.id === repo.id ? repo : r)));
+  }
+
   select(id: string): void {
     this.selectedId.set(id);
     try {

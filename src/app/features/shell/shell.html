@@ -10,6 +10,16 @@
   </a>
 
   <nav aria-label="Main">
+    <a
+      class="nav-item agent-item"
+      routerLink="/agent"
+      routerLinkActive="active"
+      #ag="routerLinkActive"
+    >
+      <app-section-badge [meta]="agentMeta" [size]="30" [class.dim]="!ag.isActive" />
+      <span class="nav-title">{{ agentMeta.title }}</span>
+      <span class="live-dot" title="Agent is active"></span>
+    </a>
     <p class="nav-label">Scan</p>
     @for (item of nav(); track item.link) {
       <a

@@ -70,9 +70,20 @@
                   @if (item.findingIds.length > 1) {
                     <span class="faint">· {{ item.findingIds.length }} findings</span>
                   }
+                  @if (item.agentVerified) {
+                    <span
+                      class="agent-chip"
+                      title="The agent read the code and confirmed this issue"
+                    >
+                      <app-icon name="verified" [size]="13" /> Verified by agent
+                    </span>
+                  }
                 </div>
                 <h3>{{ item.title }}</h3>
                 <p class="action">{{ item.action }}</p>
+                @if (item.agentNote) {
+                  <p class="agent-note"><app-icon name="bot" [size]="14" /> {{ item.agentNote }}</p>
+                }
                 @if (item.filePath) {
                   <p class="file faint">
                     <app-icon name="file" [size]="13" /><code>{{ item.filePath }}</code>
@@ -80,6 +91,17 @@
                 }
               </div>
               <div class="fix-actions">
+                @if (item.fix; as fix) {
+                  <a
+                    class="btn btn-sm pr-btn"
+                    [href]="fix.prUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    [attr.data-status]="fix.status"
+                  >
+                    <app-icon name="pullRequest" [size]="14" /> PR #{{ fix.prNumber }}
+                  </a>
+                }
                 <button class="btn btn-sm" type="button" (click)="details(item)">
                   Details <app-icon name="chevronRight" [size]="14" />
                 </button>
@@ -134,7 +156,14 @@
           </div>
         </app-scan-orb>
         <h1>Sweeping {{ repos.selected()?.fullName }}</h1>
-        <p class="muted">Four scanners are working through your code and its full git history.</p>
+        <p class="muted">
+          @if (agentTriaging()) {
+            The scanners are done. Your AI security engineer is reading the code behind each
+            finding.
+          } @else {
+            Four scanners are working through your code and its full git history.
+          }
+        </p>
 
         <ul class="checklist glass">
           @for (row of moduleRows(); track row.meta.id) {
@@ -165,6 +194,36 @@
                 }
               </span>
             </li>
+          }
+          @if (session.scan()?.triageStatus; as triage) {
+            @if (triage !== 'skipped') {
+              <li
+                [attr.data-state]="
+                  triage === 'running'
+                    ? 'running'
+                    : triage === 'done'
+                      ? 'done'
+                      : triage === 'failed'
+                        ? 'failed'
+                        : 'queued'
+                "
+              >
+                <app-section-badge [meta]="agentMeta" [size]="34" />
+                <div class="check-text">
+                  <strong>Agent triage</strong>
+                  <span class="faint">Confirms real issues, dismisses noise</span>
+                </div>
+                <span class="check-state">
+                  @if (triage === 'running') {
+                    <app-icon name="spinner" class="spin" [size]="16" /> Reading code…
+                  } @else if (triage === 'done') {
+                    <app-icon name="check" [size]="16" /> Done
+                  } @else {
+                    Waiting
+                  }
+                </span>
+              </li>
+            }
           }
         </ul>
       </section>

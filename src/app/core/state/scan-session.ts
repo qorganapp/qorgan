@@ -52,7 +52,10 @@ export class ScanSession {
     const scan = this.scan();
     if (!scan?.modules.length) return 0;
     if (scan.status === 'done') return 1;
-    return (scan.moduleRuns?.length ?? 0) / scan.modules.length;
+    // Триаж агентом — отдельный шаг: пока он идёт, скан ещё не на 100%.
+    const triage = scan.triageStatus && scan.triageStatus !== 'skipped' ? 1 : 0;
+    const triageDone = scan.triageStatus === 'done' ? 1 : 0;
+    return ((scan.moduleRuns?.length ?? 0) + triageDone) / (scan.modules.length + triage);
   });
 
   /** Переключение на репозиторий: берём его последний скан. Повторный вызов с тем же id — no-op. */

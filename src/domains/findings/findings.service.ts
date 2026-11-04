@@ -218,8 +218,14 @@ export class FindingsService {
       bySeverity,
       byModule,
       modules: scan.moduleRuns ?? [],
+      // В «fix now» — критичность по оценке агента, если он смотрел код.
       fixNow: await this.enrichFixNow(
-        buildFixNow(open),
+        buildFixNow(
+          open.map((f) => ({
+            ...f,
+            severity: f.agentVerdict?.severity ?? f.severity,
+          })),
+        ),
         open,
         scan.repositoryId,
       ),

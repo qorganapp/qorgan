@@ -81,6 +81,14 @@ export class ScansService {
     });
   }
 
+  latestDone(repositoryId: string): Promise<Scan | null> {
+    return this.scans.findOne({
+      where: { repositoryId, status: ScanStatus.Done },
+      order: { createdAt: 'DESC' },
+      relations: { moduleRuns: true },
+    });
+  }
+
   findForWorker(id: string): Promise<Scan | null> {
     return this.scans.findOne({
       where: { id },

@@ -66,6 +66,19 @@ export class RepositoriesService {
     });
   }
 
+  async updateAgentSettings(
+    id: string,
+    settings: Partial<
+      Pick<
+        GitRepository,
+        'agentTriage' | 'agentAutoFix' | 'agentPrReview' | 'maxOpenAgentPrs'
+      >
+    >,
+  ): Promise<GitRepository> {
+    await this.repos.update(id, settings);
+    return this.repos.findOneByOrFail({ id });
+  }
+
   async updateFromPush(repo: GitRepository, gh: GithubRepo): Promise<void> {
     if (
       repo.fullName === gh.full_name &&

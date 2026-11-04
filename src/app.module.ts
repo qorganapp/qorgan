@@ -7,6 +7,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { databaseConfig } from './config/database.config';
 import { redisConfig } from './config/redis.config';
+import { AgentModule } from './domains/agent/agent.module';
 import { AuthModule } from './domains/auth/auth.module';
 import { AccessTokenGuard } from './domains/auth/guards/access-token.guard';
 import { FindingsModule } from './domains/findings/findings.module';
@@ -34,6 +35,7 @@ export const coreImports = [
     RepositoriesModule,
     ScansModule,
     FindingsModule,
+    AgentModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: AccessTokenGuard }],

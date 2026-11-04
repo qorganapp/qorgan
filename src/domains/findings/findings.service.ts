@@ -11,7 +11,7 @@ import { priorityScore } from '../triage/priority';
 import { buildFixNow } from '../triage/summary';
 import { Scan } from '../scans/scan.entity';
 import { ListFindingsQuery } from './dto/list-findings.query';
-import { Finding, FindingStatus } from './finding.entity';
+import { AgentVerdict, Finding, FindingStatus } from './finding.entity';
 import { mergeDuplicates } from './merge';
 
 export interface ScanResults {
@@ -43,6 +43,7 @@ export class FindingsService {
           status: true,
           tool: true,
           firstSeenScanId: true,
+          agentVerdict: true,
         },
       });
       const byFp = new Map(existing.map((f) => [f.fingerprint, f]));
@@ -55,7 +56,11 @@ export class FindingsService {
           ...f,
           id: prev?.id,
           repositoryId: scan.repositoryId,
-          priorityScore: priorityScore(f),
+          // Вердикт агента привязан к fingerprint и переживает повторные сканы.
+          priorityScore: priorityScore({
+            ...f,
+            agentVerdict: prev?.agentVerdict,
+          }),
           // Игнор пользователя переживает повторные сканы; исправленное снова открываем.
           status:
             prev?.status === FindingStatus.Ignored
@@ -85,6 +90,47 @@ export class FindingsService {
     });
   }
 
+  /** Открытые находки скана без вердикта агента — самые важные первыми. */
+  untriagedForScan(scanId: string, limit: number): Promise<Finding[]> {
+    return this.findings
+      .createQueryBuilder('f')
+      .where('f.lastSeenScanId = :scanId', { scanId })
+      .andWhere('f.status = :status', { status: FindingStatus.Open })
+      .andWhere('f.agentVerdict IS NULL')
+      .orderBy('f.priorityScore', 'DESC')
+      .take(limit)
+      .getMany();
+  }
+
+  /**
+   * Сохраняет вердикт агента и пересчитывает приоритет. Уверенное «ложное срабатывание»
+   * скрывается автоматически (обратимо из UI) — это и есть автономия агента.
+   */
+  async applyVerdict(
+    finding: Finding,
+    verdict: AgentVerdict,
+  ): Promise<'ignored' | 'kept'> {
+    finding.agentVerdict = verdict;
+    finding.priorityScore = priorityScore(finding);
+    let outcome: 'ignored' | 'kept' = 'kept';
+    if (
+      verdict.verdict === 'false_positive' &&
+      verdict.confidence === 'high' &&
+      finding.status === FindingStatus.Open
+    ) {
+      finding.status = FindingStatus.Ignored;
+      finding.statusReason = 'Auto-ignored by Qorgan agent: false positive';
+      outcome = 'ignored';
+    }
+    await this.findings.update(finding.id, {
+      agentVerdict: verdict,
+      priorityScore: finding.priorityScore,
+      status: finding.status,
+      statusReason: finding.statusReason,
+    });
+    return outcome;
+  }
+
   listForScan(scanId: string, q: ListFindingsQuery) {
     return this.list({ lastSeenScanId: scanId }, q);
   }
@@ -106,6 +152,8 @@ export class FindingsService {
     });
     if (!finding) throw new NotFoundException('Finding not found');
     finding.status = status;
+    finding.statusReason =
+      status === FindingStatus.Ignored ? 'Ignored by a team member' : null;
     return this.findings.save(finding);
   }
 

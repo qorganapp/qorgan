@@ -157,3 +157,44 @@ describe('buildFixNow', () => {
     ).toHaveLength(2);
   });
 });
+
+describe('priorityScore with agent verdicts', () => {
+  const base = {
+    module: ScanModule.CodeAudit,
+    severity: Severity.High,
+    filePath: 'src/a.ts',
+    data: {},
+  };
+  it('pushes confirmed reachable issues up and false positives down', () => {
+    const plain = priorityScore(base);
+    const confirmed = priorityScore({
+      ...base,
+      agentVerdict: {
+        verdict: 'true_positive',
+        reachable: 'yes',
+        severity: Severity.High,
+      },
+    });
+    const fp = priorityScore({
+      ...base,
+      agentVerdict: {
+        verdict: 'false_positive',
+        reachable: 'no',
+        severity: Severity.Low,
+      },
+    });
+    expect(confirmed).toBeGreaterThan(plain);
+    expect(fp).toBeLessThan(plain / 10);
+  });
+  it('uses the severity the agent assessed for this repository', () => {
+    const raised = priorityScore({
+      ...base,
+      agentVerdict: {
+        verdict: 'true_positive',
+        reachable: 'unknown',
+        severity: Severity.Critical,
+      },
+    });
+    expect(raised).toBeGreaterThan(priorityScore(base));
+  });
+});

@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ScanModule } from '../../common/security.types';
 import { SCANS_QUEUE } from '../../config/redis.config';
+import { AgentTriageService } from '../agent/agent-triage.service';
 import { FindingsService } from '../findings/findings.service';
 import { GithubAppService } from '../github/github-app.service';
 import { ModuleRunStatus, ToolRunInfo } from '../scans/scan-module-run.entity';
@@ -14,7 +15,12 @@ import { Scan, ScanStatus } from '../scans/scan.entity';
 import { ScanJobData } from '../scans/scan-job.types';
 import { ScansService } from '../scans/scans.service';
 import { ADAPTERS, TOOL_BINARIES } from './adapters';
-import { NormalizedFinding, ScanContext } from './adapters/types';
+import {
+  NormalizedFinding,
+  RAW_SECRET,
+  ScanContext,
+  SecretFinding,
+} from './adapters/types';
 import { cloneRepository } from './git';
 import { toolVersion } from './run-tool';
 import { SecretValidator } from './secret-validator';
@@ -30,6 +36,7 @@ export class ScanProcessor extends WorkerHost {
     private readonly findings: FindingsService,
     private readonly github: GithubAppService,
     private readonly secrets: SecretValidator,
+    private readonly agentTriage: AgentTriageService,
     private readonly config: ConfigService,
   ) {
     super();
@@ -69,9 +76,14 @@ export class ScanProcessor extends WorkerHost {
       );
 
       const findings = perModule.flatMap((r) => r.findings);
-      await this.secrets.validate(
-        findings.filter((f) => f.module === ScanModule.Secrets),
+      const secretFindings = findings.filter(
+        (f) => f.module === ScanModule.Secrets,
       );
+      // Валидатор стирает сырые значения — забираем их раньше, чтобы агент видел код с маской.
+      const rawSecrets = secretFindings
+        .map((f) => (f as SecretFinding)[RAW_SECRET])
+        .filter((v): v is string => !!v);
+      await this.secrets.validate(secretFindings);
       await this.findings.recordScanResults(scan, {
         findings,
         modules: scan.modules,
@@ -81,6 +93,14 @@ export class ScanProcessor extends WorkerHost {
       const allFailed = perModule.every(
         (r) => r.status === ModuleRunStatus.Failed,
       );
+      if (!allFailed) {
+        await this.agentTriage.triageScan(
+          scan,
+          scan.repository,
+          workdir,
+          rawSecrets,
+        );
+      }
       await this.scans.markFinished(scan, {
         status: allFailed ? ScanStatus.Failed : ScanStatus.Done,
         commitSha,

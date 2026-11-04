@@ -11,6 +11,22 @@ import {
 import { ScanModule, Severity } from '../../common/security.types';
 import { GitRepository } from '../repositories/git-repository.entity';
 
+export type VerdictKind = 'true_positive' | 'false_positive' | 'needs_context';
+
+/** Заключение AI-агента по находке. */
+export interface AgentVerdict {
+  verdict: VerdictKind;
+  reachable: 'yes' | 'no' | 'unknown';
+  /** Критичность с учётом контекста этого репозитория. */
+  severity: Severity;
+  confidence: 'high' | 'medium' | 'low';
+  explanation: string;
+  exploitScenario?: string;
+  fixHint?: string;
+  runId: string;
+  at: string;
+}
+
 export enum FindingStatus {
   Open = 'open',
   Ignored = 'ignored',
@@ -75,6 +91,13 @@ export class Finding {
 
   @Column({ type: 'real', default: 0 })
   priorityScore: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  agentVerdict: AgentVerdict | null;
+
+  /** Почему статус такой: например, «auto-ignored by agent: false positive». */
+  @Column({ type: 'text', nullable: true })
+  statusReason: string | null;
 
   @Column({ type: 'uuid' })
   firstSeenScanId: string;

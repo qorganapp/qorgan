@@ -17,6 +17,11 @@ export interface Prioritizable {
   severity: Severity;
   filePath: string | null;
   data: Record<string, unknown>;
+  agentVerdict?: {
+    verdict: 'true_positive' | 'false_positive' | 'needs_context';
+    reachable: 'yes' | 'no' | 'unknown';
+    severity: Severity;
+  } | null;
 }
 
 /**
@@ -26,7 +31,9 @@ export interface Prioritizable {
 export function priorityScore(f: Prioritizable): number {
   if (f.data.malicious === true) return 1000;
 
-  let score = SEVERITY_WEIGHT[f.severity];
+  const verdict = f.agentVerdict;
+  // Агент видел код: его оценка критичности в контексте репозитория важнее общей по правилу.
+  let score = SEVERITY_WEIGHT[verdict?.severity ?? f.severity];
 
   if (f.module === ScanModule.Secrets) {
     if (f.data.validity === 'live') score *= 3;
@@ -46,5 +53,9 @@ export function priorityScore(f: Prioritizable): number {
   ) {
     score *= 0.3;
   }
+  if (verdict?.verdict === 'false_positive') score *= 0.1;
+  if (verdict?.verdict === 'true_positive' && verdict.reachable === 'yes')
+    score *= 1.5;
+  if (verdict?.reachable === 'no') score *= 0.5;
   return Math.round(score * 100) / 100;
 }

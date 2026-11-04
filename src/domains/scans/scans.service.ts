@@ -7,7 +7,7 @@ import { ALL_SCAN_MODULES, ScanModule } from '../../common/security.types';
 import { SCANS_QUEUE } from '../../config/redis.config';
 import { GitRepository } from '../repositories/git-repository.entity';
 import { ScanModuleRun } from './scan-module-run.entity';
-import { Scan, ScanStatus, ScanTrigger } from './scan.entity';
+import { Scan, ScanStatus, ScanTrigger, TriageStatus } from './scan.entity';
 import { ScanJobData } from './scan-job.types';
 
 @Injectable()
@@ -111,6 +111,13 @@ export class ScansService {
       error: result.error ?? null,
       finishedAt: new Date(),
     });
+  }
+
+  async setTriageStatus(
+    scanId: string,
+    triageStatus: TriageStatus,
+  ): Promise<void> {
+    await this.scans.update(scanId, { triageStatus });
   }
 
   async saveModuleRun(run: Omit<ScanModuleRun, 'id' | 'scan'>): Promise<void> {

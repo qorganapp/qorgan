@@ -19,6 +19,14 @@ export enum ScanStatus {
   Failed = 'failed',
 }
 
+export enum TriageStatus {
+  Pending = 'pending',
+  Running = 'running',
+  Done = 'done',
+  Skipped = 'skipped',
+  Failed = 'failed',
+}
+
 export enum ScanTrigger {
   Manual = 'manual',
   Push = 'push',
@@ -55,6 +63,10 @@ export class Scan {
 
   @Column({ type: 'text', nullable: true })
   error: string | null;
+
+  /** Этап разбора находок агентом (после сканеров). null — агент не настроен. */
+  @Column({ type: 'enum', enum: TriageStatus, nullable: true })
+  triageStatus: TriageStatus | null;
 
   @OneToMany(() => ScanModuleRun, (run) => run.scan)
   moduleRuns: ScanModuleRun[];

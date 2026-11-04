@@ -31,6 +31,21 @@ export class GitRepository {
   @Column({ type: 'uuid' })
   installationId: string;
 
+  /** Агент разбирает находки после каждого скана. */
+  @Column({ default: true })
+  agentTriage: boolean;
+
+  /** Агент сам открывает PR с исправлениями. */
+  @Column({ default: true })
+  agentAutoFix: boolean;
+
+  /** Агент ревьюит pull request'ы команды. */
+  @Column({ default: true })
+  agentPrReview: boolean;
+
+  @Column({ type: 'int', default: 3 })
+  maxOpenAgentPrs: number;
+
   @ManyToOne(() => GithubInstallation, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'installationId' })
   installation: GithubInstallation;

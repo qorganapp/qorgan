@@ -1,0 +1,79 @@
+<header class="hero enter-up">
+  <app-section-badge [meta]="meta" [size]="64" />
+  <div>
+    <h1>{{ meta.title }}</h1>
+    <p class="muted">{{ meta.description }}</p>
+  </div>
+  <button
+    class="btn btn-primary connect"
+    type="button"
+    [disabled]="connecting()"
+    (click)="connect()"
+  >
+    <app-icon name="github" [size]="18" /> Connect GitHub
+  </button>
+</header>
+
+@if (!repos.repositories().length) {
+  <section class="empty glass enter-up">
+    <h2>No repositories yet</h2>
+    <p class="muted">
+      Install the Qorgan GitHub App and pick the repositories to sweep. It only asks for
+      <strong>read access to code and metadata</strong> — no write access, no secrets, no settings.
+    </p>
+    <ul class="promises">
+      <li><app-icon name="lock" [size]="16" /> Read-only access, repository by repository</li>
+      <li><app-icon name="shield" [size]="16" /> Your code is never executed</li>
+      <li><app-icon name="x" [size]="16" /> Clones are deleted right after each scan</li>
+    </ul>
+  </section>
+} @else {
+  <ul class="repo-list">
+    @for (repo of repos.repositories(); track repo.id; let i = $index) {
+      <li class="repo glass enter-up" [style.animation-delay.ms]="i * 50">
+        <span class="repo-icon"><app-icon name="repo" [size]="20" /></span>
+        <div class="repo-main">
+          <strong>{{ repo.fullName }}</strong>
+          <span class="faint meta-line">
+            <app-icon name="branch" [size]="13" /> {{ repo.defaultBranch }}
+            @if (repo.private) {
+              · <app-icon name="lock" [size]="13" /> Private
+            }
+            @if (lastScans()[repo.id]; as scan) {
+              · Last sweep {{ scan.createdAt | timeAgo }}
+              <span class="status" [attr.data-status]="scan.status">{{ scan.status }}</span>
+            } @else if (lastScans()[repo.id] === null) {
+              · Never swept
+            }
+          </span>
+        </div>
+        <button class="btn btn-sm" type="button" (click)="openRepo(repo)">
+          Open <app-icon name="chevronRight" [size]="14" />
+        </button>
+      </li>
+    }
+  </ul>
+}
+
+@if (installations().length) {
+  <h2 class="section-title">GitHub installations</h2>
+  <ul class="repo-list">
+    @for (inst of installations(); track inst.id) {
+      <li class="repo glass">
+        <span class="repo-icon"><app-icon name="github" [size]="20" /></span>
+        <div class="repo-main">
+          <strong>{{ inst.accountLogin }}</strong>
+          <span class="faint meta-line">Installed {{ inst.createdAt | timeAgo }}</span>
+        </div>
+        <button
+          class="btn btn-sm"
+          type="button"
+          [disabled]="syncing() === inst.id"
+          (click)="sync(inst)"
+        >
+          <app-icon name="refresh" [size]="14" [class.spin]="syncing() === inst.id" /> Sync
+        </button>
+      </li>
+    }
+  </ul>
+}

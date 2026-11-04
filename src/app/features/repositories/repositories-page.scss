@@ -1,0 +1,133 @@
+:host {
+  display: block;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+.hero {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin: 8px 0 28px;
+
+  h1 {
+    font-size: clamp(28px, 3.4vw, 38px);
+    font-weight: 800;
+  }
+  p {
+    margin: 6px 0 0;
+  }
+  > div {
+    flex: 1;
+    min-width: 0;
+  }
+}
+.empty {
+  padding: 32px;
+  h2 {
+    font-size: 22px;
+  }
+  p {
+    margin: 8px 0 18px;
+    max-width: 560px;
+  }
+}
+.promises {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  app-icon {
+    color: var(--accent-b);
+  }
+}
+.repo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.repo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  box-shadow: none;
+}
+.repo-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--glass-strong);
+  flex: none;
+}
+.repo-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+.meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+.status {
+  margin-left: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--glass-strong);
+
+  &[data-status='done'] {
+    color: var(--ok);
+  }
+  &[data-status='failed'] {
+    color: var(--sev-critical);
+  }
+  &[data-status='running'],
+  &[data-status='queued'] {
+    color: var(--accent-b);
+  }
+}
+.section-title {
+  margin: 36px 0 14px;
+  font-size: 18px;
+  font-weight: 700;
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 760px) {
+  .hero {
+    flex-wrap: wrap;
+  }
+  .connect {
+    width: 100%;
+  }
+}

@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Qorgan Web
 
-## Getting Started
+Angular-фронтенд Qorgan — security-сканера репозиториев в стиле CleanMyMac:
+одна кнопка **Full Sweep**, анимация сканирования по модулям и короткий список
+«N things to fix now».
 
-First, run the development server:
+Бэкенд: [qorgan-app-backend](https://github.com/qorganapp/qorgan-app-backend).
+
+## Запуск
+
+Нужна Node 24 (`.nvmrc`).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm start            # http://localhost:4200, /api проксируется на http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Демо без бэкенда
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Откройте `http://localhost:4200/?mock=1` — встроенный mock-бэкенд отдаёт реальные результаты
+сканеров на тестовом уязвимом репозитории и симулирует прогресс скана. Подходит любой логин.
+`?mock=0` выключает демо-режим. В production-сборке mock-код лежит в отдельном ленивом чанке
+и загружается только в демо-режиме.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Структура
 
-## Learn More
+```
+src/app/
+  core/api/       типы API, QorganApi (все запросы), Auth (токен в памяти, refresh-cookie)
+  core/http/      authInterceptor (один refresh на пачку 401), mockInterceptor
+  core/state/     RepoContext (выбранный репозиторий), ScanSession (скан, polling, сводка)
+  core/mock/      демо-бэкенд и фикстуры
+  shared/         module-meta (названия/цвета/иконки модулей), иконки, бейджи, scan-orb
+  features/       auth, shell, full-sweep, module, repositories
+```
 
-To learn more about Next.js, take a look at the following resources:
+Цвет интерфейса задаётся активным разделом (`module-meta.ts` → CSS-переменные
+`--accent-a/--accent-b`). Тёмная тема по умолчанию, светлая — по системной настройке.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Тесты
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm test -- --watch=false
+```

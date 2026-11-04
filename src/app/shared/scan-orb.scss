@@ -1,0 +1,155 @@
+:host {
+  --orb-size: 260px;
+  position: relative;
+  width: var(--orb-size);
+  height: var(--orb-size);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.core {
+  position: relative;
+  z-index: 2;
+  width: 78%;
+  height: 78%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background:
+    radial-gradient(circle at 30% 25%, rgb(255 255 255 / 0.35), transparent 45%),
+    linear-gradient(145deg, var(--accent-a), var(--accent-b));
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.35),
+    inset 0 -18px 40px rgb(0 0 0 / 0.25),
+    0 30px 80px -20px var(--accent-a);
+  transition:
+    transform 0.5s var(--ease-spring),
+    background 0.6s ease;
+}
+
+.halo {
+  position: absolute;
+  inset: -12%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent-b) 45%, transparent),
+    transparent 65%
+  );
+  filter: blur(24px);
+  opacity: 0.7;
+  animation: breathe 4.5s ease-in-out infinite;
+}
+
+.ring {
+  position: absolute;
+  inset: 3%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 55%, var(--accent-b) 80%, #fff 100%);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.progress {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+
+  circle {
+    fill: none;
+    stroke-width: 1.6;
+  }
+  .track {
+    stroke: rgb(255 255 255 / 0.1);
+  }
+  .bar {
+    stroke: #fff;
+    stroke-linecap: round;
+    stroke-dasharray: 295.3;
+    transition: stroke-dashoffset 0.8s var(--ease-out);
+    filter: drop-shadow(0 0 6px var(--accent-b));
+  }
+}
+
+.wave {
+  position: absolute;
+  inset: 11%;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--accent-b) 70%, white);
+  opacity: 0;
+}
+
+:host([data-state='idle']) .core {
+  animation: float 6s ease-in-out infinite;
+}
+
+:host([data-state='scanning']) {
+  .ring {
+    opacity: 1;
+    animation: spin 1.6s linear infinite;
+  }
+  .progress {
+    opacity: 1;
+  }
+  .core {
+    transform: scale(0.94);
+  }
+  .halo {
+    animation-duration: 1.8s;
+  }
+  .wave {
+    animation: wave 2.4s var(--ease-out) infinite;
+  }
+  .w2 {
+    animation-delay: 1.2s;
+  }
+}
+
+:host([data-state='done']) {
+  .progress {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes breathe {
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+@keyframes float {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes wave {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring,
+  .halo,
+  .wave,
+  .core {
+    animation: none !important;
+  }
+}

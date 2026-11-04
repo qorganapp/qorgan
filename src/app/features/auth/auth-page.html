@@ -1,0 +1,94 @@
+<div class="blob b1"></div>
+<div class="blob b2"></div>
+
+<main class="layout">
+  <section class="pitch enter-up">
+    <div class="brand">
+      <span class="logo"><app-icon name="shield" [size]="22" [stroke]="2.2" /></span>
+      Qorgan
+    </div>
+    <h1>One sweep.<br />Every risk in your repo.</h1>
+    <p class="muted lead">
+      Dependencies, code, secrets and infrastructure — scanned together, triaged for you. Get the
+      handful of fixes that matter, not a wall of alerts.
+    </p>
+    <ul class="modules">
+      @for (m of modules; track m.id; let i = $index) {
+        <li class="enter-up" [style.animation-delay.ms]="120 + i * 70">
+          <app-section-badge [meta]="m" [size]="36" />
+          <div>
+            <strong>{{ m.title }}</strong>
+            <span class="muted">{{ m.tagline }}</span>
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+
+  <section class="card glass enter-up" style="animation-delay: 80ms">
+    <h2>{{ isSignUp() ? 'Create your account' : 'Welcome back' }}</h2>
+    <p class="muted sub">
+      {{
+        isSignUp()
+          ? 'Start sweeping your repositories in a minute.'
+          : 'Sign in to continue to Qorgan.'
+      }}
+    </p>
+
+    @if (demo) {
+      <p class="demo-note">
+        <app-icon name="sweep" [size]="16" /> Demo mode — any username and password will work.
+      </p>
+    }
+
+    <form (ngSubmit)="submit()" #form="ngForm">
+      <label class="field">
+        Username
+        <input
+          class="input"
+          name="username"
+          autocomplete="username"
+          required
+          minlength="3"
+          maxlength="32"
+          [(ngModel)]="username"
+        />
+      </label>
+      <label class="field">
+        Password
+        <input
+          class="input"
+          type="password"
+          name="password"
+          [attr.autocomplete]="isSignUp() ? 'new-password' : 'current-password'"
+          required
+          [attr.minlength]="isSignUp() ? 8 : 1"
+          maxlength="72"
+          [(ngModel)]="password"
+        />
+      </label>
+      @if (isSignUp()) {
+        <p class="hint faint">At least 8 characters. Username: letters, digits, “_” and “.”.</p>
+      }
+
+      @if (error()) {
+        <p class="error" role="alert"><app-icon name="alert" [size]="16" /> {{ error() }}</p>
+      }
+
+      <button class="btn btn-primary submit" type="submit" [disabled]="busy() || form.invalid">
+        @if (busy()) {
+          <app-icon name="spinner" class="spin" [size]="18" />
+        }
+        {{ isSignUp() ? 'Create account' : 'Sign in' }}
+      </button>
+    </form>
+
+    <p class="switch muted">
+      @if (isSignUp()) {
+        Already have an account? <a routerLink="/sign-in">Sign in</a>
+      } @else {
+        New to Qorgan? <a routerLink="/sign-up">Create an account</a>
+      }
+    </p>
+  </section>
+</main>

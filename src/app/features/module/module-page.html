@@ -1,0 +1,208 @@
+@if (meta(); as m) {
+  <header class="hero enter-up">
+    <app-section-badge [meta]="m" [size]="64" />
+    <div>
+      <h1>{{ m.title }}</h1>
+      <p class="muted">{{ m.description }}</p>
+      <p class="tools faint mono">{{ m.tools.join(' · ') }}</p>
+    </div>
+  </header>
+
+  @if (!session.lastDoneScanId() && status() !== 'fixed') {
+    <section class="empty glass enter-up">
+      <h2>No results yet</h2>
+      <p class="muted">Run a Full Sweep to see what {{ m.title }} finds in this repository.</p>
+      <a class="btn btn-primary" routerLink="/sweep">
+        <app-icon name="sweep" [size]="16" /> Go to Full Sweep
+      </a>
+    </section>
+  } @else {
+    <div class="toolbar">
+      <div class="tabs glass" role="tablist">
+        @for (tab of tabs; track tab.id) {
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="status() === tab.id"
+            [class.active]="status() === tab.id"
+            (click)="setStatus(tab.id)"
+          >
+            {{ tab.label }}
+          </button>
+        }
+      </div>
+      <div class="sev-filter">
+        @for (sev of severities; track sev) {
+          <button
+            type="button"
+            class="sev-chip"
+            [attr.data-severity]="sev"
+            [class.active]="severity() === sev"
+            [attr.aria-pressed]="severity() === sev"
+            [disabled]="!counts()[sev]"
+            (click)="toggleSeverity(sev)"
+          >
+            <span class="dot"></span>{{ severityLabel[sev] }}
+            <span class="n">{{ counts()[sev] ?? 0 }}</span>
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (loading()) {
+      <div class="list">
+        @for (i of [1, 2, 3, 4]; track i) {
+          <div class="row skeleton glass"></div>
+        }
+      </div>
+    } @else if (!visible().length) {
+      <section class="empty glass enter-fade">
+        <span class="ok-badge"><app-icon name="check" [size]="26" [stroke]="2.4" /></span>
+        <h2>
+          @switch (status()) {
+            @case ('open') {
+              Nothing to fix here
+            }
+            @case ('ignored') {
+              No ignored findings
+            }
+            @case ('fixed') {
+              Nothing fixed yet
+            }
+          }
+        </h2>
+        <p class="muted">
+          @switch (status()) {
+            @case ('open') {
+              {{ m.title }} found no open issues in the last sweep.
+            }
+            @case ('ignored') {
+              Findings you ignore are hidden from Full Sweep and listed here.
+            }
+            @case ('fixed') {
+              When a finding disappears in a later sweep, it shows up here.
+            }
+          }
+        </p>
+      </section>
+    } @else {
+      <ul class="list">
+        @for (f of visible(); track f.id; let i = $index) {
+          <li>
+            <button
+              type="button"
+              class="row glass enter-up"
+              [style.animation-delay.ms]="Math.min(i, 12) * 30"
+              [class.selected]="selectedId() === f.id"
+              (click)="open(f)"
+            >
+              <app-severity-badge [severity]="f.severity" />
+              <span class="row-main">
+                <span class="row-title">{{ f.title }}</span>
+                @if (f.filePath) {
+                  <span class="row-file faint mono">
+                    {{ f.filePath }}{{ f.line ? ':' + f.line : '' }}
+                  </span>
+                }
+              </span>
+              <app-icon name="chevronRight" [size]="16" class="faint" />
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  }
+
+  @if (selected(); as f) {
+    <div
+      class="scrim"
+      (click)="close()"
+      animate.enter="enter-fade"
+      animate.leave="leave-fade"
+    ></div>
+    <aside
+      class="drawer"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="f.title"
+      animate.enter="drawer-in"
+      animate.leave="drawer-out"
+    >
+      <header class="drawer-head">
+        <app-severity-badge [severity]="f.severity" />
+        <button class="btn btn-ghost btn-sm close" type="button" (click)="close()">
+          <app-icon name="x" [size]="18" /><span class="sr-only">Close</span>
+        </button>
+      </header>
+      <h2>{{ f.title }}</h2>
+      @if (f.filePath) {
+        <p class="file mono">
+          <app-icon name="file" [size]="14" />{{ f.filePath }}{{ f.line ? ':' + f.line : '' }}
+        </p>
+      }
+
+      <section class="fix-box">
+        <p class="label">How to fix</p>
+        <p>{{ f.action }}</p>
+      </section>
+
+      @if (snippet(); as code) {
+        <pre class="snippet"><code>{{ code }}</code></pre>
+      }
+
+      @if (f.description && f.description !== f.title) {
+        <p class="description muted">{{ f.description }}</p>
+      }
+
+      <dl class="facts">
+        @for (fact of facts(); track fact.label) {
+          <div>
+            <dt>{{ fact.label }}</dt>
+            <dd [class.mono]="fact.mono" [attr.data-tone]="fact.tone">
+              @if (fact.href) {
+                <a [href]="fact.href" target="_blank" rel="noopener noreferrer">
+                  {{ fact.value }} <app-icon name="external" [size]="12" />
+                </a>
+              } @else {
+                {{ fact.value }}
+              }
+            </dd>
+          </div>
+        }
+      </dl>
+
+      @if (references().length) {
+        <p class="label">References</p>
+        <ul class="refs">
+          @for (ref of references(); track ref) {
+            <li>
+              <a [href]="ref" target="_blank" rel="noopener noreferrer">{{ ref }}</a>
+            </li>
+          }
+        </ul>
+      }
+
+      <footer class="drawer-foot">
+        @if (f.status === 'open') {
+          <button
+            class="btn"
+            type="button"
+            [disabled]="busy()"
+            (click)="setFindingStatus(f, 'ignored')"
+          >
+            <app-icon name="eyeOff" [size]="16" /> Ignore
+          </button>
+        } @else if (f.status === 'ignored') {
+          <button
+            class="btn"
+            type="button"
+            [disabled]="busy()"
+            (click)="setFindingStatus(f, 'open')"
+          >
+            <app-icon name="eye" [size]="16" /> Reopen
+          </button>
+        }
+      </footer>
+    </aside>
+  }
+}

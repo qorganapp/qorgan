@@ -1,0 +1,220 @@
+@if (repos.loaded() && !repos.repositories().length) {
+  <section class="empty glass enter-up">
+    <app-section-badge [meta]="meta" [size]="64" />
+    <h1>Connect your first repository</h1>
+    <p class="muted">
+      Qorgan reads your code through a GitHub App with read-only access. Nothing is executed, and
+      clones are deleted right after each scan.
+    </p>
+    <a class="btn btn-primary" routerLink="/repositories">
+      <app-icon name="github" [size]="18" /> Connect GitHub
+    </a>
+  </section>
+} @else {
+  @switch (session.phase()) {
+    @case ('results') {
+      <section class="results-hero enter-up">
+        <app-scan-orb state="done" [progress]="1" [size]="168">
+          <div class="orb-count">
+            <strong>{{ fixNow().length }}</strong>
+            <span>to fix</span>
+          </div>
+        </app-scan-orb>
+        <div class="hero-text">
+          <p class="eyebrow">Full Sweep complete</p>
+          @if (allClear()) {
+            <h1>You’re all clear.</h1>
+            <p class="muted">Nothing urgent to fix in {{ repos.selected()?.fullName }}.</p>
+          } @else {
+            <h1>
+              {{ fixNow().length }} {{ fixNow().length === 1 ? 'thing' : 'things' }} to fix now
+            </h1>
+            <p class="muted">
+              Out of <strong>{{ session.summary()?.totals?.open }}</strong> open findings, these
+              matter most.
+              @if (session.summary()?.totals?.fixedSinceLastScan) {
+                <span class="fixed-note">
+                  <app-icon name="check" [size]="14" />
+                  {{ session.summary()?.totals?.fixedSinceLastScan }} fixed since last scan
+                </span>
+              }
+            </p>
+          }
+          <p class="scan-meta faint">
+            <app-icon name="clock" [size]="14" /> {{ session.scan()?.finishedAt | timeAgo }}
+            @if (session.scan()?.commitSha; as sha) {
+              · <app-icon name="branch" [size]="14" />
+              <code>{{ sha.slice(0, 7) }}</code>
+            }
+          </p>
+        </div>
+        <button class="btn btn-primary again" type="button" (click)="scan()">
+          <app-icon name="refresh" [size]="16" /> Scan again
+        </button>
+      </section>
+
+      @if (!allClear()) {
+        <ol class="fix-list">
+          @for (item of fixNow(); track trackItem(item); let i = $index) {
+            <li
+              class="fix glass enter-up"
+              [style.animation-delay.ms]="80 + i * 60"
+              animate.leave="leave-fade"
+            >
+              <span class="rank">{{ i + 1 }}</span>
+              <app-section-badge [meta]="moduleMeta[item.module]" [size]="38" />
+              <div class="fix-body">
+                <div class="fix-head">
+                  <app-severity-badge [severity]="item.severity" />
+                  <span class="faint module-name">{{ moduleTitle(item.module) }}</span>
+                  @if (item.findingIds.length > 1) {
+                    <span class="faint">· {{ item.findingIds.length }} findings</span>
+                  }
+                </div>
+                <h3>{{ item.title }}</h3>
+                <p class="action">{{ item.action }}</p>
+                @if (item.filePath) {
+                  <p class="file faint">
+                    <app-icon name="file" [size]="13" /><code>{{ item.filePath }}</code>
+                  </p>
+                }
+              </div>
+              <div class="fix-actions">
+                <button class="btn btn-sm" type="button" (click)="details(item)">
+                  Details <app-icon name="chevronRight" [size]="14" />
+                </button>
+                <button
+                  class="btn btn-sm btn-ghost"
+                  type="button"
+                  [disabled]="ignoring() === trackItem(item)"
+                  (click)="ignore(item)"
+                  title="Hide this from future sweeps"
+                >
+                  <app-icon name="eyeOff" [size]="14" /> Ignore
+                </button>
+              </div>
+            </li>
+          }
+        </ol>
+      }
+
+      <h2 class="section-title">By module</h2>
+      <div class="tiles">
+        @for (tile of tiles(); track tile.meta.id; let i = $index) {
+          <a
+            class="tile glass enter-up"
+            [routerLink]="['/modules', tile.meta.id]"
+            [style.animation-delay.ms]="200 + i * 60"
+            [style.--tile-a]="tile.meta.gradient[0]"
+            [style.--tile-b]="tile.meta.gradient[1]"
+          >
+            <app-section-badge [meta]="tile.meta" [size]="44" />
+            <div class="tile-count">{{ tile.count }}</div>
+            <div class="tile-title">{{ tile.meta.title }}</div>
+            <div class="faint tile-sub">
+              @if (tile.run?.status === 'failed') {
+                <span class="warn"><app-icon name="alert" [size]="13" /> Scanner failed</span>
+              } @else if (tile.run?.status === 'partial') {
+                <span class="warn"><app-icon name="alert" [size]="13" /> Partial results</span>
+              } @else {
+                {{ tile.count === 0 ? 'Nothing found' : 'open findings' }}
+              }
+            </div>
+          </a>
+        }
+      </div>
+    }
+
+    @case ('scanning') {
+      <section class="stage enter-fade">
+        <app-scan-orb state="scanning" [progress]="session.progress()">
+          <div class="orb-count">
+            <strong>{{ (session.progress() * 100).toFixed(0) }}%</strong>
+            <span>{{ session.scan()?.status === 'queued' ? 'queued' : 'sweeping' }}</span>
+          </div>
+        </app-scan-orb>
+        <h1>Sweeping {{ repos.selected()?.fullName }}</h1>
+        <p class="muted">Four scanners are working through your code and its full git history.</p>
+
+        <ul class="checklist glass">
+          @for (row of moduleRows(); track row.meta.id) {
+            <li [attr.data-state]="row.state">
+              <app-section-badge [meta]="row.meta" [size]="34" />
+              <div class="check-text">
+                <strong>{{ row.meta.title }}</strong>
+                <span class="faint mono">{{ row.meta.tools.join(' · ') }}</span>
+              </div>
+              <span class="check-state">
+                @switch (row.state) {
+                  @case ('running') {
+                    <app-icon name="spinner" class="spin" [size]="16" />
+                  }
+                  @case ('done') {
+                    <app-icon name="check" [size]="16" />
+                  }
+                  @case ('failed') {
+                    <app-icon name="alert" [size]="16" />
+                  }
+                  @case ('partial') {
+                    <app-icon name="alert" [size]="16" />
+                  }
+                }
+                {{ progressLabel[row.state] }}
+                @if (row.found !== undefined && row.state !== 'running') {
+                  <span class="faint">· {{ row.found }} found</span>
+                }
+              </span>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @default {
+      <section class="stage enter-fade">
+        @if (session.phase() === 'failed') {
+          <div class="banner" role="alert">
+            <app-icon name="alert" [size]="18" />
+            <div>
+              <strong>The last sweep failed.</strong>
+              <span class="muted">{{ session.scan()?.error ?? 'Unknown error' }}</span>
+            </div>
+          </div>
+        }
+        <app-scan-orb [state]="orbState()">
+          <button
+            class="scan-button"
+            type="button"
+            (click)="scan()"
+            [disabled]="session.phase() === 'loading' || !repos.selected()"
+          >
+            @if (session.phase() === 'loading') {
+              <app-icon name="spinner" class="spin" [size]="28" />
+            } @else {
+              Scan
+            }
+          </button>
+        </app-scan-orb>
+        <h1>{{ meta.title }}</h1>
+        <p class="muted lead">
+          {{ meta.description }}
+          @if (repos.selected(); as repo) {
+            <br /><span class="faint"
+              >Ready to sweep <strong>{{ repo.fullName }}</strong
+              >.</span
+            >
+          }
+        </p>
+        <ul class="chips">
+          @for (m of modules; track m.id) {
+            <li class="chip glass"><app-section-badge [meta]="m" [size]="24" />{{ m.title }}</li>
+          }
+        </ul>
+      </section>
+    }
+  }
+
+  @if (session.error()) {
+    <p class="banner" role="alert"><app-icon name="alert" [size]="18" /> {{ session.error() }}</p>
+  }
+}

@@ -23,8 +23,25 @@ export class GithubAppService {
     private readonly jwt: JwtService,
   ) {}
 
+  /** Настроен ли GitHub App на этом сервере (пустые переменные в .env — нет). */
+  isConfigured(): boolean {
+    return [
+      'GITHUB_APP_ID',
+      'GITHUB_APP_SLUG',
+      'GITHUB_APP_PRIVATE_KEY',
+      'GITHUB_CLIENT_ID',
+      'GITHUB_CLIENT_SECRET',
+    ].every((key) => !!this.config.get<string>(key)?.trim());
+  }
+
   installUrl(state: string): string {
-    const slug = this.config.getOrThrow<string>('GITHUB_APP_SLUG');
+    if (!this.isConfigured()) {
+      // Без этого ссылка вела бы на github.com/apps//installations/new — 404.
+      throw new ServiceUnavailableException(
+        'GitHub App is not configured on this server yet. Set the GITHUB_APP_* variables in the server .env.',
+      );
+    }
+    const slug = this.config.getOrThrow<string>('GITHUB_APP_SLUG').trim();
     return `https://github.com/apps/${slug}/installations/new?state=${encodeURIComponent(state)}`;
   }
 

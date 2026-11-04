@@ -8,7 +8,8 @@ import {
 } from '../../common/security.types';
 import { NormalizedFinding } from '../scanner/adapters/types';
 import { priorityScore } from '../triage/priority';
-import { buildFixNow } from '../triage/summary';
+import { buildFixNow, FixNowItem } from '../triage/summary';
+import { AgentFix } from '../agent/agent-fix.entity';
 import { Scan } from '../scans/scan.entity';
 import { ListFindingsQuery } from './dto/list-findings.query';
 import { AgentVerdict, Finding, FindingStatus } from './finding.entity';
@@ -26,6 +27,8 @@ export interface ScanResults {
 export class FindingsService {
   constructor(
     @InjectRepository(Finding) private readonly findings: Repository<Finding>,
+    @InjectRepository(AgentFix)
+    private readonly agentFixes: Repository<AgentFix>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -189,6 +192,7 @@ export class FindingsService {
         line: true,
         priorityScore: true,
         data: true,
+        agentVerdict: true,
       },
     });
     const fixed = await this.findings.count({
@@ -214,8 +218,42 @@ export class FindingsService {
       bySeverity,
       byModule,
       modules: scan.moduleRuns ?? [],
-      fixNow: buildFixNow(open),
+      fixNow: await this.enrichFixNow(
+        buildFixNow(open),
+        open,
+        scan.repositoryId,
+      ),
+      triageStatus: scan.triageStatus,
     };
+  }
+
+  /** Подтвердил ли пункт агент и открыт ли уже PR с исправлением. */
+  private async enrichFixNow(
+    items: FixNowItem[],
+    open: Finding[],
+    repositoryId: string,
+  ) {
+    const byId = new Map(open.map((f) => [f.id, f]));
+    const fixes = await this.agentFixes.find({
+      where: { repositoryId },
+      order: { createdAt: 'DESC' },
+    });
+    return items.map((item) => {
+      const verdicts = item.findingIds
+        .map((id) => byId.get(id)?.agentVerdict)
+        .filter(Boolean);
+      const fix = fixes.find((f) =>
+        f.findingIds.some((id) => item.findingIds.includes(id)),
+      );
+      return {
+        ...item,
+        agentVerified: verdicts.some((v) => v!.verdict === 'true_positive'),
+        agentNote: verdicts[0]?.explanation ?? null,
+        fix: fix
+          ? { prNumber: fix.prNumber, prUrl: fix.prUrl, status: fix.status }
+          : null,
+      };
+    });
   }
 
   private async list(where: FindOptionsWhere<Finding>, q: ListFindingsQuery) {

@@ -61,6 +61,31 @@ Events: *Push*, *Pull request*, *Installation*, *Installation repositories*.
 с включённой опцией **Request user authorization (OAuth) during installation** — по ней API
 проверяет, что установка принадлежит пользователю.
 
+## Продакшен
+
+Работает на `https://qorgan.shoqan.dev` (сервер `77.240.38.74`, Ubuntu 24.04).
+
+```
+Caddy (TLS, Let's Encrypt) ── /api/* → 127.0.0.1:3000 (api)
+                           └─ /*     → 127.0.0.1:8080 (web, репозиторий qorgan-app)
+docker compose: api, worker, postgres, redis, web   (/opt/qorgan)
+```
+
+**CI/CD** (`.github/workflows/ci.yml`): на каждый push и PR — lint, тесты, сборка. На push в
+`main` образы `api` и `worker` уходят в GHCR, затем job `deploy` заходит на сервер по SSH и
+обновляет только свои сервисы. Ключ CI (секрет `DEPLOY_SSH_KEY`) ограничен forced command
+`/opt/qorgan/deploy.sh`: он может только запустить `backend|web <sha>`, без shell и проброса портов.
+
+**Секреты приложения** — только на сервере, в `/opt/qorgan/.env` (владелец `deploy`, 600), не в
+GitHub. После изменения:
+
+```
+cd /opt/qorgan && sudo -u deploy docker compose --env-file .env --env-file tags.env up -d api worker
+```
+
+**Миграции** — при старте API (`DB_MIGRATE=true`). Новая миграция после изменения сущностей:
+`pnpm migration:generate src/migrations/<Name>` (на локальной БД со схемой предыдущей версии).
+
 ## API
 
 Все пути — с префиксом `/api`.

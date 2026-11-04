@@ -90,6 +90,24 @@ export class FindingsService {
     });
   }
 
+  findByIds(ids: string[]): Promise<Finding[]> {
+    return ids.length
+      ? this.findings.find({ where: { id: In(ids) } })
+      : Promise.resolve([]);
+  }
+
+  /** Fingerprints находок модуля, известных до изменений агента (для поиска «новых» проблем). */
+  async knownFingerprints(
+    repositoryId: string,
+    module: ScanModule,
+  ): Promise<Set<string>> {
+    const rows = await this.findings.find({
+      where: { repositoryId, module },
+      select: { fingerprint: true },
+    });
+    return new Set(rows.map((r) => r.fingerprint));
+  }
+
   /** Открытые находки скана без вердикта агента — самые важные первыми. */
   untriagedForScan(scanId: string, limit: number): Promise<Finding[]> {
     return this.findings

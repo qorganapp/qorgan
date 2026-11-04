@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ScanModule } from '../../common/security.types';
 import { SCANS_QUEUE } from '../../config/redis.config';
+import { AgentFixService } from '../agent/agent-fix.service';
 import { AgentTriageService } from '../agent/agent-triage.service';
 import { FindingsService } from '../findings/findings.service';
 import { GithubAppService } from '../github/github-app.service';
@@ -37,6 +38,7 @@ export class ScanProcessor extends WorkerHost {
     private readonly github: GithubAppService,
     private readonly secrets: SecretValidator,
     private readonly agentTriage: AgentTriageService,
+    private readonly agentFix: AgentFixService,
     private readonly config: ConfigService,
   ) {
     super();
@@ -100,6 +102,9 @@ export class ScanProcessor extends WorkerHost {
           workdir,
           rawSecrets,
         );
+        const queued = await this.agentFix.planFixes(scan, scan.repository);
+        if (queued)
+          this.logger.log(`Scan ${scan.id}: queued ${queued} agent fix(es)`);
       }
       await this.scans.markFinished(scan, {
         status: allFailed ? ScanStatus.Failed : ScanStatus.Done,

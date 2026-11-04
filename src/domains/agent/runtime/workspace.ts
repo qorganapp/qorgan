@@ -176,9 +176,24 @@ export class Workspace {
       : 'No matches';
   }
 
+  /**
+   * CI, секреты репозитория и настройки GitHub агент не меняет никогда: prompt injection в коде
+   * не должен суметь подсунуть изменение пайплайна под видом «фикса».
+   */
+  private assertWritable(path: string): void {
+    if (!this.writable) throw new ToolInputError('Workspace is read-only');
+    const clean = path.replace(/\\/g, '/').replace(/^\.\//, '');
+    if (
+      /^\.(github|gitlab|circleci)\//i.test(clean) ||
+      /(^|\/)\.gitmodules$/.test(clean)
+    ) {
+      throw new ToolInputError(`Editing ${path} is not allowed for the agent`);
+    }
+  }
+
   /** Точечная правка: old должен встречаться ровно один раз. */
   async edit(path: string, oldText: string, newText: string): Promise<string> {
-    if (!this.writable) throw new ToolInputError('Workspace is read-only');
+    this.assertWritable(path);
     const abs = await this.resolvePath(path);
     const before = await readFile(abs, 'utf8').catch(() => {
       throw new ToolInputError(`File not found: ${path}`);
@@ -197,7 +212,7 @@ export class Workspace {
   }
 
   async create(path: string, content: string): Promise<string> {
-    if (!this.writable) throw new ToolInputError('Workspace is read-only');
+    this.assertWritable(path);
     const abs = await this.resolvePath(path);
     if (await lstat(abs).catch(() => null))
       throw new ToolInputError(`File already exists: ${path}`);

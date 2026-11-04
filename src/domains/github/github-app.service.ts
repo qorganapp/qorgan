@@ -121,19 +121,40 @@ export class GithubAppService {
     );
   }
 
+  /** Вызов REST API от имени установки (для PR, ревью и т.п.). */
+  async asInstallation<T>(
+    installationId: string,
+    path: string,
+    opts: { method?: string; body?: unknown; accept?: string } = {},
+  ): Promise<T> {
+    const token = await this.installationToken(installationId);
+    return this.request<T>(path, { ...opts, auth: `token ${token}` });
+  }
+
+  /** Имя и email бота приложения для коммитов. */
+  botIdentity(): { name: string; email: string } {
+    const slug = this.config.get<string>('GITHUB_APP_SLUG', 'qorgan');
+    return {
+      name: `${slug}[bot]`,
+      email: `${slug}[bot]@users.noreply.github.com`,
+    };
+  }
+
   private async request<T>(
     path: string,
-    opts: { method?: string; auth: string },
+    opts: { method?: string; auth: string; body?: unknown; accept?: string },
   ): Promise<T> {
     const res = await fetch(`${API}${path}`, {
       method: opts.method ?? 'GET',
       headers: {
-        Accept: 'application/vnd.github+json',
+        Accept: opts.accept ?? 'application/vnd.github+json',
         Authorization: opts.auth,
         'User-Agent': 'qorgan-app',
         'X-GitHub-Api-Version': '2022-11-28',
+        ...(opts.body !== undefined && { 'Content-Type': 'application/json' }),
       },
-      signal: AbortSignal.timeout(15_000),
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      signal: AbortSignal.timeout(20_000),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -144,6 +165,8 @@ export class GithubAppService {
         `GitHub API ${res.status}: ${text.slice(0, 200)}`,
       );
     }
-    return (await res.json()) as T;
+    if (res.status === 204) return undefined as T;
+    const type = res.headers.get('content-type') ?? '';
+    return (type.includes('json') ? await res.json() : await res.text()) as T;
   }
 }

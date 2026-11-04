@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import type { QueueOptions } from 'bullmq';
 
 export const SCANS_QUEUE = 'scans';
+export const AGENT_QUEUE = 'agent';
 
 export const redisConfig = (config: ConfigService): QueueOptions => {
   const url = new URL(config.get('REDIS_URL', 'redis://localhost:6379'));

@@ -1,0 +1,14 @@
+{
+  "name": "qorgan",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@11.1.1",
+  "scripts": {
+    "dev:api": "pnpm --filter @qorgan/api start:dev",
+    "dev:web": "pnpm --filter @qorgan/web start",
+    "build": "pnpm -r build",
+    "test": "pnpm --filter @qorgan/api test && pnpm --filter @qorgan/web exec ng test --watch=false",
+    "lint": "pnpm --filter @qorgan/api exec eslint \"{src,test}/**/*.ts\""
+  }
+}

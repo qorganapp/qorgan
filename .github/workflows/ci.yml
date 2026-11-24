@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @qorgan/api
+      - name: Lint
+        run: pnpm lint
+      - name: Unit tests
+        run: pnpm --filter @qorgan/api test
+      - name: Build
+        run: pnpm --filter @qorgan/api build
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @qorgan/web
+      - name: Unit tests
+        run: pnpm --filter @qorgan/web exec ng test --watch=false
+      - name: Build
+        run: pnpm --filter @qorgan/web exec ng build
+
+  # Гарантия «склонировал и поднял»: все образы собираются из чистого репозитория.
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose build

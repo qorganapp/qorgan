@@ -1,5 +1,5 @@
 {
-  "name": "qorgan-app",
+  "name": "@qorgan/web",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
@@ -9,7 +9,6 @@
     "test": "ng test"
   },
   "private": true,
-  "packageManager": "pnpm@11.1.1",
   "dependencies": {
     "@angular/common": "^22.2.0",
     "@angular/compiler": "^22.2.0",

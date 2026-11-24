@@ -4,7 +4,8 @@ Angular-фронтенд Qorgan — security-сканера репозитори
 одна кнопка **Full Sweep**, анимация сканирования по модулям и короткий список
 «N things to fix now».
 
-Бэкенд: [qorgan-app-backend](https://github.com/qorganapp/qorgan-app-backend).
+Бэкенд: [`apps/api`](../api). Весь стек поднимается из корня репозитория — см.
+[корневой README](../../README.md).
 
 ## AI-агент
 

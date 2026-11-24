@@ -4,17 +4,25 @@
 }
 
 :8080 {
-	root * /srv
 	encode zstd gzip
 
-	# Файлы с хешем в имени не меняются — кешируем надолго.
-	@hashed path_regexp \-[A-Z0-9]{8}\.(js|css)$
-	header @hashed Cache-Control "public, max-age=31536000, immutable"
-	# index.html всегда свежий, чтобы новый деплой подхватывался сразу.
-	@html path / /index.html
-	header @html Cache-Control "no-cache"
+	# API живёт на том же origin, что и приложение: cookie и CORS не нужно настраивать отдельно.
+	handle /api/* {
+		reverse_proxy {$API_UPSTREAM:api:3000}
+	}
 
-	# SPA: неизвестные пути отдают index.html — роутинг делает Angular.
-	try_files {path} /index.html
-	file_server
+	handle {
+		root * /srv
+
+		# Файлы с хешем в имени не меняются — кешируем надолго.
+		@hashed path_regexp \-[A-Z0-9]{8}\.(js|css)$
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		# index.html всегда свежий, чтобы новый деплой подхватывался сразу.
+		@html path / /index.html
+		header @html Cache-Control "no-cache"
+
+		# SPA: неизвестные пути отдают index.html — роутинг делает Angular.
+		try_files {path} /index.html
+		file_server
+	}
 }

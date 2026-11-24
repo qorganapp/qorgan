@@ -43,14 +43,11 @@ GitHub App ─webhook─► API (src/main.ts) ─► Postgres
 
 ## Запуск
 
-```bash
-cp .env.example .env          # заполнить JWT_* и GITHUB_*
-docker compose up --build
-```
+Весь стек поднимается из корня репозитория — см. [корневой README](../../README.md).
 
-Локальная разработка: `docker compose up postgres redis`, затем `pnpm start:dev` (API) и
-`pnpm build && node dist/worker.js` (воркер; сканеры должны быть в PATH — проще запускать
-воркер в Docker).
+Локальная разработка: `make dev-deps` в корне (Postgres и Redis), `cp .env.example .env` здесь,
+затем `pnpm start:dev` (API) и `pnpm build && node dist/worker.js` (воркер; сканеры должны быть
+в PATH — проще запускать воркер в Docker: `docker compose up --build worker` из корня).
 
 ### GitHub App
 
@@ -62,6 +59,9 @@ Events: *Push*, *Pull request*, *Installation*, *Installation repositories*.
 проверяет, что установка принадлежит пользователю.
 
 ## Продакшен
+
+> Этот раздел описывает деплой из исходных репозиториев `qorgan-app-backend` и `qorgan-app`:
+> продакшен пока собирается из них, CI монорепозитория образы не публикует и не деплоит.
 
 Работает на `https://qorgan.shoqan.dev` (сервер `77.240.38.74`, Ubuntu 24.04).
 

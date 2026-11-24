@@ -1,0 +1,226 @@
+:host {
+  display: block;
+  padding: 20px;
+}
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+
+  h2 {
+    font-size: 17px;
+  }
+  p {
+    margin: 4px 0 0;
+    font-size: 13px;
+  }
+}
+.state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 18px 0 6px;
+  font-size: 14px;
+}
+.cta {
+  flex-direction: column;
+  text-align: center;
+  padding: 28px 0 14px;
+
+  p {
+    margin: 0;
+    max-width: 420px;
+  }
+  app-icon {
+    color: var(--accent-b);
+  }
+}
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-strong);
+  font-size: 13px;
+
+  &.bad app-icon {
+    color: var(--sev-critical);
+  }
+}
+.pulse {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-b);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    transform: scale(1.6);
+    opacity: 0.4;
+  }
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+}
+/* Вид связи — рисунок линии; цвет несёт только состояние «уязвимо». */
+.line {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.edge[data-kind='calls'] .line,
+.line.calls {
+  stroke-dasharray: 9 6;
+}
+.edge[data-kind='shared_dependency'] .line,
+.line.shared {
+  stroke-dasharray: 1.5 6;
+}
+.edge {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+
+  .hit {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 18;
+  }
+  &.vulnerable .line {
+    stroke: var(--sev-critical);
+  }
+  &:hover .line,
+  &.on .line {
+    stroke-width: 3;
+    stroke: var(--text);
+  }
+  &.vulnerable:hover .line,
+  &.vulnerable.on .line {
+    stroke: var(--sev-critical);
+  }
+  &.off {
+    opacity: 0.3;
+  }
+}
+.node {
+  rect {
+    fill: var(--bg-elevated);
+    stroke: var(--glass-border);
+    stroke-width: 1.5;
+    transition: stroke 0.2s ease;
+  }
+  text {
+    fill: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  &.on rect {
+    stroke: var(--accent-b);
+    stroke-width: 2;
+  }
+}
+
+.legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 6px 0 14px;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  svg {
+    width: 34px;
+    height: 8px;
+  }
+}
+.vuln {
+  color: var(--sev-critical);
+}
+
+.relations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+
+  > li {
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+  }
+  > li.on {
+    border-color: var(--glass-border);
+    background: var(--glass);
+  }
+  button {
+    width: 100%;
+    display: grid;
+    gap: 2px;
+    padding: 9px 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    text-align: left;
+    font-size: 13px;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--glass);
+    }
+  }
+}
+.pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  overflow-wrap: anywhere;
+}
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+.evidence {
+  list-style: none;
+  margin: 0;
+  padding: 2px 12px 12px;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+
+  li {
+    display: grid;
+    gap: 1px;
+    overflow-wrap: anywhere;
+  }
+}
+.where {
+  color: var(--text-faint);
+}

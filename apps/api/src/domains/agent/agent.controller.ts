@@ -2,7 +2,10 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
+  NotFoundException,
   Optional,
   Param,
   ParseUUIDPipe,
@@ -10,15 +13,18 @@ import {
   Post,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RepositoriesService } from '../repositories/repositories.service';
+import { SpaceGraphService } from '../spaces/space-graph.service';
+import { SpacesService } from '../spaces/spaces.service';
 import { AgentConversationsService } from './agent-conversations.service';
 import { AgentFix } from './agent-fix.entity';
 import { AgentRunsService } from './agent-runs.service';
 import { AgentSettingsDto, ChatMessageDto } from './dto/agent.dto';
 import { LLM_PROVIDER, LlmProvider } from './llm/llm-provider';
+import { AgentQueue } from './queue/agent-queue';
 
 @Controller()
 export class AgentController {
@@ -30,6 +36,9 @@ export class AgentController {
     private readonly runs: AgentRunsService,
     private readonly conversations: AgentConversationsService,
     private readonly repositories: RepositoriesService,
+    private readonly spaces: SpacesService,
+    private readonly graphs: SpaceGraphService,
+    private readonly queue: AgentQueue,
   ) {}
 
   @Get('agent/status')
@@ -79,23 +88,82 @@ export class AgentController {
     return this.repositories.updateAgentSettings(repo.id, dto);
   }
 
-  @Get('repositories/:id/agent/conversations')
+  @Get('spaces/:id/agent/conversations')
   async conversationsList(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const repo = await this.repositories.findOwned(id, user.id);
-    return this.conversations.list(repo.id, user.id);
+    const space = await this.spaces.findOwned(id, user.id);
+    return this.conversations.list(space.id, user.id);
   }
 
-  @Post('repositories/:id/agent/conversations')
+  @Post('spaces/:id/agent/conversations')
   async startConversation(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ChatMessageDto,
   ) {
-    const repo = await this.repositories.findOwned(id, user.id);
-    return this.conversations.start(repo.id, user.id, dto.content);
+    const space = await this.spaces.findOwned(id, user.id);
+    const focus = await this.focusIn(space.id, dto.repositoryId);
+    return this.conversations.start(
+      space.id,
+      user.id,
+      dto.content,
+      focus ?? null,
+    );
+  }
+
+  /** Всё, что агент делал в пространстве и по его репозиториям. */
+  @Get('spaces/:id/agent/activity')
+  async spaceActivity(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const space = await this.spaces.findOwned(id, user.id);
+    const repos = await this.spaces.repositoriesOf(space.id);
+    return this.runs.listForSpace(
+      space.id,
+      repos.map((r) => r.id),
+    );
+  }
+
+  @Get('spaces/:id/agent/fixes')
+  async spaceFixes(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const space = await this.spaces.findOwned(id, user.id);
+    const repos = await this.spaces.repositoriesOf(space.id);
+    if (!repos.length) return [];
+    return this.fixes.find({
+      where: { repositoryId: In(repos.map((r) => r.id)) },
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+  }
+
+  /** Карта связей между репозиториями пространства — последняя построенная. */
+  @Get('spaces/:id/graph')
+  async graph(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.graphs.view(await this.spaces.findOwned(id, user.id));
+  }
+
+  /** Строит карту заново. Пока идёт построение, повторный запрос ничего не запускает. */
+  @Post('spaces/:id/graph/refresh')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async refreshGraph(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const space = await this.spaces.findOwned(id, user.id);
+    if ((await this.graphs.view(space)).status !== 'running') {
+      await this.graphs.begin(space.id);
+      await this.queue.map({ spaceId: space.id });
+    }
+    return this.graphs.view(space);
   }
 
   @Get('agent/conversations/:id')
@@ -107,11 +175,24 @@ export class AgentController {
   }
 
   @Post('agent/conversations/:id/messages')
-  message(
+  async message(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ChatMessageDto,
   ) {
-    return this.conversations.post(id, user.id, dto.content);
+    const conversation = await this.conversations.get(id, user.id);
+    const focus = await this.focusIn(conversation.spaceId, dto.repositoryId);
+    return this.conversations.post(id, user.id, dto.content, focus);
+  }
+
+  /** Фокус вопроса должен быть репозиторием того же пространства. */
+  private async focusIn(
+    spaceId: string | null,
+    repositoryId: string | null | undefined,
+  ): Promise<string | null | undefined> {
+    if (!repositoryId) return repositoryId;
+    if (!spaceId || !(await this.spaces.contains(spaceId, repositoryId)))
+      throw new NotFoundException('Repository not found in this space');
+    return repositoryId;
   }
 }

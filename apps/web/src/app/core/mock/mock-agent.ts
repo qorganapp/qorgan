@@ -6,6 +6,8 @@ import {
   AgentRunDetails,
   AgentVerdict,
   Finding,
+  SpaceEdge,
+  SpaceGraph,
 } from '../api/api.types';
 
 /** Демо-данные агента поверх реальных находок фикстуры. */
@@ -189,6 +191,7 @@ export function demoActivity(repositoryId: string, lastScanFinishedAt: string | 
   const run = (id: string, minutesAgo: number, fields: Partial<AgentRun>): AgentRun => ({
     id,
     repositoryId,
+    spaceId: null,
     kind: 'triage',
     status: 'done',
     title: '',
@@ -391,6 +394,15 @@ const ANSWER_DELAY_MS = 2600;
 
 const ANSWERS: [RegExp, string][] = [
   [
+    /depend|connect|relat|share|between|связ|зависим/i,
+    `Two things tie **qorganapp/demo-shop** and **qorganapp/platform-infra** together:
+
+1. **platform-infra deploys demo-shop.** \`infra/main.tf\` in platform-infra creates the \`aws_s3_bucket.data\` bucket that the shop reads uploads from, and the same Terraform sets its ACL to \`public-read\`. So the public bucket finding in one repository exposes data written by the other.
+2. **They share vulnerable packages.** Both lockfiles pin \`minimist@1.2.0\` (prototype pollution). One upgrade PR per repository is needed — PR #14 covers demo-shop only.
+
+Fix the bucket ACL first: it is the only issue here that crosses the repository boundary and is reachable from the internet.`,
+  ],
+  [
     /first|priorit|urgent|start|важн|снач/i,
     `Here is the order I would go in for **qorganapp/demo-shop**:
 
@@ -445,6 +457,7 @@ const DEFAULT_ANSWER = `I can look at the code, the latest Full Sweep results an
 - **What should I fix first?**
 - **Is the leaked token still a risk?**
 - **Explain the S3 bucket issue**
+- **How do these repositories depend on each other?**
 - **What did you do this week?**`;
 
 export class MockChat {
@@ -456,15 +469,17 @@ export class MockChat {
 
   constructor(private readonly now: () => number) {}
 
-  list(repositoryId: string): AgentConversation[] {
+  list(spaceId: string): AgentConversation[] {
     return this.conversations
-      .filter((c) => c.repositoryId === repositoryId)
+      .filter((c) => c.spaceId === spaceId)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
-  start(repositoryId: string, content: string): AgentConversation {
+  /** `repositoryId` — фокус разговора; null — вопрос ко всему пространству. */
+  start(spaceId: string, content: string, repositoryId: string | null = null): AgentConversation {
     const conversation: AgentConversation = {
       id: `c-${this.conversations.length + 1}`,
+      spaceId,
       repositoryId,
       title: content.slice(0, 80),
       createdAt: new Date(this.now()).toISOString(),
@@ -476,10 +491,16 @@ export class MockChat {
     return this.get(conversation.id)!;
   }
 
-  post(id: string, content: string): AgentConversation | 'busy' | null {
+  post(
+    id: string,
+    content: string,
+    repositoryId?: string | null,
+  ): AgentConversation | 'busy' | null {
     const list = this.messages.get(id);
     if (!list) return null;
     if (this.get(id)!.messages!.some((m) => m.status === 'pending')) return 'busy';
+    if (repositoryId !== undefined)
+      this.conversations.find((c) => c.id === id)!.repositoryId = repositoryId;
     this.ask(id, content);
     return this.get(id);
   }
@@ -518,4 +539,83 @@ export class MockChat {
     const conversation = this.conversations.find((c) => c.id === id)!;
     conversation.updatedAt = at;
   }
+}
+
+const MAP_BUILD_MS = 5000;
+
+/** Заготовленная карта связей демо-пространства: «строится» несколько секунд. */
+export function demoGraph(
+  spaceId: string,
+  repos: { id: string; fullName: string }[],
+  startedMs: number | null,
+  now: number,
+  stale: boolean,
+): SpaceGraph {
+  const base = { spaceId, stale: false, nodes: [], edges: [], runId: null, error: null };
+  if (startedMs === null) return { ...base, status: 'none', generatedAt: null };
+  if (now - startedMs < MAP_BUILD_MS) return { ...base, status: 'running', generatedAt: null };
+
+  const has = (id: string) => repos.some((r) => r.id === id);
+  const edges: SpaceEdge[] =
+    has('r-shop') && has('r-infra')
+      ? [
+          {
+            from: 'r-infra',
+            to: 'r-shop',
+            kind: 'calls',
+            label: 'deploys the shop and the bucket it reads uploads from',
+            evidence: [
+              {
+                repo: 'qorganapp/platform-infra',
+                filePath: 'infra/main.tf',
+                detail: 'aws_s3_bucket.data with acl = "public-read" — the bucket the shop uses',
+              },
+              {
+                repo: 'qorganapp/demo-shop',
+                filePath: 'src/config.ts',
+                detail: 'reads the bucket name from DATA_BUCKET',
+              },
+            ],
+          },
+          {
+            from: 'r-shop',
+            to: 'r-infra',
+            kind: 'shared_dependency',
+            label: '3 shared dependencies, 1 vulnerable',
+            vulnerable: true,
+            evidence: [
+              {
+                repo: 'qorganapp/demo-shop',
+                filePath: 'package.json',
+                detail:
+                  'minimist — has an open vulnerability (also in qorganapp/platform-infra: package.json)',
+              },
+              {
+                repo: 'qorganapp/demo-shop',
+                filePath: 'package.json',
+                detail: 'express (also in qorganapp/platform-infra: package.json)',
+              },
+              {
+                repo: 'qorganapp/demo-shop',
+                filePath: 'package.json',
+                detail: 'lodash (also in qorganapp/platform-infra: package.json)',
+              },
+            ],
+          },
+        ]
+      : [];
+  return {
+    ...base,
+    status: 'done',
+    stale,
+    nodes: repos.map((r) => ({
+      repositoryId: r.id,
+      fullName: r.fullName,
+      packages: [],
+      dependencyCount: 12,
+    })),
+    edges,
+    runId: `map-${spaceId}`,
+    generatedAt: new Date(startedMs + MAP_BUILD_MS).toISOString(),
+  };
 }

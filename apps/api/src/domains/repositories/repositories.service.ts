@@ -27,6 +27,17 @@ export class RepositoriesService {
     return repo;
   }
 
+  /** Только свои репозитории из списка; чужой или несуществующий id — 404. */
+  async findManyOwned(ids: string[], userId: string): Promise<GitRepository[]> {
+    if (!ids.length) return [];
+    const repos = await this.repos.find({
+      where: { id: In(ids), installation: { userId } },
+    });
+    if (repos.length !== new Set(ids).size)
+      throw new NotFoundException('Repository not found');
+    return repos;
+  }
+
   findWithInstallation(id: string): Promise<GitRepository | null> {
     return this.repos.findOne({
       where: { id },

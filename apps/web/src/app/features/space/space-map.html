@@ -1,0 +1,170 @@
+<header class="head">
+  <div>
+    <h2>How the repositories connect</h2>
+    <p class="faint">
+      @if (graph()?.generatedAt; as at) {
+        Built {{ at | timeAgo }} from package manifests and the agent’s reading of the code.
+      } @else {
+        Shared and internal packages from manifests, plus service calls the agent finds in code.
+      }
+    </p>
+  </div>
+  @if (repositoryCount() > 1 && graph() && graph()!.status !== 'none') {
+    <button class="btn btn-sm" type="button" [disabled]="starting() || running()" (click)="build()">
+      <app-icon name="refresh" [size]="14" [class.spin]="running()" />
+      {{ running() ? 'Building…' : 'Rebuild' }}
+    </button>
+  }
+</header>
+
+@if (repositoryCount() < 2) {
+  <p class="state muted">
+    <app-icon name="graph" [size]="18" /> Add at least two repositories to see how they connect.
+  </p>
+} @else if (!graph()) {
+  <p class="state faint">Loading the map…</p>
+} @else if (graph()!.status === 'none') {
+  <div class="state cta">
+    <app-icon name="graph" [size]="28" />
+    <p class="muted">
+      No map yet. Building it reads every repository in the space and uses the agent’s token budget.
+    </p>
+    <button class="btn btn-primary" type="button" [disabled]="starting()" (click)="build()">
+      Build map
+    </button>
+  </div>
+} @else {
+  @if (running()) {
+    <p class="banner" role="status">
+      <span class="pulse"></span> Reading the repositories and looking for connections. This can
+      take a few minutes.
+    </p>
+  } @else if (graph()!.status === 'failed') {
+    <p class="banner bad" role="alert">
+      <app-icon name="alert" [size]="15" /> {{ graph()!.error || 'Building the map failed.' }}
+    </p>
+  } @else if (graph()!.stale) {
+    <p class="banner">
+      <app-icon name="clock" [size]="15" /> Repositories were added or removed since this map was
+      built.
+    </p>
+  }
+
+  @if (nodes().length) {
+    <svg
+      class="canvas"
+      [attr.viewBox]="viewBox()"
+      role="img"
+      aria-label="Repository relationship map"
+    >
+      <defs>
+        <marker
+          id="arrow"
+          viewBox="0 0 10 10"
+          refX="8"
+          refY="5"
+          markerWidth="7"
+          markerHeight="7"
+          orient="auto-start-reverse"
+        >
+          <path
+            d="M1 1L9 5L1 9"
+            fill="none"
+            stroke="context-stroke"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </marker>
+      </defs>
+      @for (e of edges(); track e.index) {
+        <g
+          class="edge"
+          [attr.data-kind]="e.edge.kind"
+          [class.vulnerable]="e.edge.vulnerable"
+          [class.on]="selected() === e.index"
+          [class.off]="selected() !== null && selected() !== e.index"
+          (click)="select(e.index)"
+        >
+          <title>{{ e.from.fullName }} — {{ e.edge.label }} — {{ e.to.fullName }}</title>
+          <path class="hit" [attr.d]="e.path" />
+          <path
+            class="line"
+            [attr.d]="e.path"
+            [attr.marker-end]="e.edge.kind === 'shared_dependency' ? null : 'url(#arrow)'"
+          />
+        </g>
+      }
+      @for (n of nodes(); track n.id) {
+        <g
+          class="node"
+          [class.on]="active() && touches(active()!, n)"
+          [attr.transform]="'translate(' + n.x + ' ' + n.y + ')'"
+        >
+          <title>{{ n.fullName }}</title>
+          <rect
+            [attr.x]="-n.w / 2"
+            [attr.y]="-nodeH / 2"
+            [attr.width]="n.w"
+            [attr.height]="nodeH"
+            rx="17"
+          />
+          <text text-anchor="middle" dominant-baseline="central">{{ n.name }}</text>
+        </g>
+      }
+    </svg>
+
+    <ul class="legend" aria-label="Legend">
+      <li>
+        <svg viewBox="0 0 34 8"><path class="line" d="M1 4H33" /></svg> Uses a package
+      </li>
+      <li>
+        <svg viewBox="0 0 34 8"><path class="line calls" d="M1 4H33" /></svg> Calls at runtime
+      </li>
+      <li>
+        <svg viewBox="0 0 34 8"><path class="line shared" d="M1 4H33" /></svg> Shared dependencies
+      </li>
+      <li><app-icon name="alert" [size]="13" class="vuln" /> Vulnerable shared dependency</li>
+    </ul>
+  }
+
+  @if (edges().length) {
+    <ul class="relations">
+      @for (e of edges(); track e.index) {
+        <li [class.on]="selected() === e.index">
+          <button
+            type="button"
+            [attr.aria-expanded]="selected() === e.index"
+            (click)="select(e.index)"
+          >
+            <span class="pair">
+              <strong>{{ e.from.fullName }}</strong>
+              <span class="faint">{{ kindLabel[e.edge.kind].toLowerCase() }}</span>
+              <strong>{{ e.to.fullName }}</strong>
+            </span>
+            <span class="label">
+              @if (e.edge.vulnerable) {
+                <app-icon name="alert" [size]="13" class="vuln" />
+              }
+              {{ e.edge.label }}
+            </span>
+          </button>
+          @if (selected() === e.index) {
+            <ul class="evidence" animate.enter="enter-fade">
+              @for (ev of e.edge.evidence; track $index) {
+                <li>
+                  <span class="mono where"
+                    >{{ ev.repo }}{{ ev.filePath ? ':' + ev.filePath : '' }}</span
+                  >
+                  <span>{{ ev.detail }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </li>
+      }
+    </ul>
+  } @else if (graph()!.status === 'done') {
+    <p class="state muted">No connections found between these repositories.</p>
+  }
+}

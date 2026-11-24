@@ -4,8 +4,9 @@ import { Job } from 'bullmq';
 import { AGENT_QUEUE } from '../../../config/redis.config';
 import { AgentChatService } from '../agent-chat.service';
 import { AgentFixService } from '../agent-fix.service';
+import { AgentMapService } from '../agent-map.service';
 import { AgentReviewService } from '../agent-review.service';
-import { AgentJobName, ChatJob, FixJob, ReviewJob } from './agent-jobs';
+import { AgentJobName, ChatJob, FixJob, MapJob, ReviewJob } from './agent-jobs';
 
 /** Задачи агента в воркере. По умолчанию по одной: фиксы и ревью тяжёлые и дорогие. */
 @Processor(AGENT_QUEUE, {
@@ -18,6 +19,7 @@ export class AgentProcessor extends WorkerHost {
     private readonly fixes: AgentFixService,
     private readonly reviews: AgentReviewService,
     private readonly chat: AgentChatService,
+    private readonly maps: AgentMapService,
   ) {
     super();
   }
@@ -30,6 +32,8 @@ export class AgentProcessor extends WorkerHost {
         return this.reviews.review(job.data as ReviewJob);
       case 'chat':
         return this.chat.answer(job.data as ChatJob);
+      case 'space-map':
+        return this.maps.build(job.data as MapJob);
       default:
         this.logger.warn(`Unknown agent job ${String(job.name)}`);
     }

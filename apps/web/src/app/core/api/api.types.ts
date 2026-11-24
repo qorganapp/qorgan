@@ -139,7 +139,7 @@ export interface ScanSummary {
   triageStatus?: TriageStatus | null;
 }
 
-export type AgentRunKind = 'triage' | 'fix' | 'review' | 'chat';
+export type AgentRunKind = 'triage' | 'fix' | 'review' | 'chat' | 'map';
 export type AgentRunStatus =
   'running' | 'done' | 'failed' | 'refused' | 'budget_exceeded' | 'max_steps' | 'skipped';
 export type AgentFixStatus = 'open' | 'merged' | 'closed';
@@ -152,7 +152,9 @@ export interface AgentStatus {
 
 export interface AgentRun {
   id: string;
-  repositoryId: string;
+  /** null — запуск относится к пространству целиком (чат без фокуса, карта связей). */
+  repositoryId: string | null;
+  spaceId: string | null;
   kind: AgentRunKind;
   status: AgentRunStatus;
   title: string;
@@ -200,11 +202,88 @@ export interface AgentMessage {
 
 export interface AgentConversation {
   id: string;
-  repositoryId: string;
+  spaceId: string | null;
+  /** Фокус разговора: репозиторий или null — всё пространство. */
+  repositoryId: string | null;
   title: string;
   createdAt: string;
   updatedAt: string;
   messages?: AgentMessage[];
+}
+
+/** Пространство — группа репозиториев; в нём живёт агент. */
+export interface Space {
+  id: string;
+  name: string;
+  repositoriesChangedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SpaceListItem extends Space {
+  repositoryCount: number;
+}
+
+export interface SpaceDetail extends Space {
+  repositories: Repository[];
+}
+
+export interface SpaceRepositoryOverview {
+  repositoryId: string;
+  lastScan: {
+    id: string;
+    status: ScanStatus;
+    triageStatus: TriageStatus | null;
+    createdAt: string;
+    finishedAt: string | null;
+  } | null;
+  open: number;
+  bySeverity: Record<Severity, number>;
+}
+
+export interface SpaceOverview {
+  spaceId: string;
+  totals: { repositories: number; scanned: number; open: number };
+  bySeverity: Record<Severity, number>;
+  byModule: Partial<Record<ScanModule, number>>;
+  repositories: SpaceRepositoryOverview[];
+}
+
+export type SpaceEdgeKind = 'depends_on' | 'shared_dependency' | 'calls';
+
+export interface SpaceEdgeEvidence {
+  repo: string;
+  filePath?: string;
+  detail: string;
+}
+
+/** Связь между репозиториями пространства; `from`/`to` — id репозиториев. */
+export interface SpaceEdge {
+  from: string;
+  to: string;
+  kind: SpaceEdgeKind;
+  label: string;
+  evidence: SpaceEdgeEvidence[];
+  vulnerable?: boolean;
+}
+
+export interface SpaceNode {
+  repositoryId: string;
+  fullName: string;
+  packages: string[];
+  dependencyCount: number;
+}
+
+export interface SpaceGraph {
+  spaceId: string;
+  status: 'none' | 'running' | 'done' | 'failed';
+  /** Состав репозиториев менялся после построения карты. */
+  stale: boolean;
+  nodes: SpaceNode[];
+  edges: SpaceEdge[];
+  runId: string | null;
+  error: string | null;
+  generatedAt: string | null;
 }
 
 export interface FindingsQuery {

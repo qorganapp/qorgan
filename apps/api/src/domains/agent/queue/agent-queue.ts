@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { createHash } from 'node:crypto';
 import { AGENT_QUEUE } from '../../../config/redis.config';
-import { ChatJob, FixJob, ReviewJob } from './agent-jobs';
+import { ChatJob, FixJob, MapJob, ReviewJob } from './agent-jobs';
 
 const OPTS = { attempts: 1, removeOnComplete: 500, removeOnFail: 500 };
 
@@ -31,6 +31,14 @@ export class AgentQueue {
     return this.queue.add('chat', job, {
       ...OPTS,
       jobId: `chat-${job.messageId}`,
+    });
+  }
+
+  /** Повторный запуск разрешён: от дублей защищает статус карты, а не jobId. */
+  map(job: MapJob) {
+    return this.queue.add('space-map', job, {
+      ...OPTS,
+      jobId: `map-${job.spaceId}-${Date.now()}`,
     });
   }
 }

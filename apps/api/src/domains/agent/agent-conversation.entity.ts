@@ -10,19 +10,29 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { GitRepository } from '../repositories/git-repository.entity';
+import { Space } from '../spaces/space.entity';
 
 @Entity('agent_conversations')
-@Index(['repositoryId', 'userId', 'updatedAt'])
+@Index(['spaceId', 'userId', 'updatedAt'])
 export class AgentConversation {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid' })
-  repositoryId: string;
+  /** Разговор принадлежит пространству; null — старый разговор до появления пространств. */
+  @Column({ type: 'uuid', nullable: true })
+  spaceId: string | null;
 
-  @ManyToOne(() => GitRepository, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Space, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'spaceId' })
+  space: Space | null;
+
+  /** Фокус разговора: конкретный репозиторий или null — всё пространство. */
+  @Column({ type: 'uuid', nullable: true })
+  repositoryId: string | null;
+
+  @ManyToOne(() => GitRepository, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'repositoryId' })
-  repository: GitRepository;
+  repository: GitRepository | null;
 
   @Column({ type: 'uuid' })
   userId: string;

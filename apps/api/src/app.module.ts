@@ -14,6 +14,7 @@ import { FindingsModule } from './domains/findings/findings.module';
 import { GithubModule } from './domains/github/github.module';
 import { RepositoriesModule } from './domains/repositories/repositories.module';
 import { ScansModule } from './domains/scans/scans.module';
+import { SpacesModule } from './domains/spaces/spaces.module';
 import { UsersModule } from './domains/users/users.module';
 
 /** Общая инфраструктура API и воркера. */
@@ -35,6 +36,7 @@ export const coreImports = [
     RepositoriesModule,
     ScansModule,
     FindingsModule,
+    SpacesModule,
     AgentModule,
   ],
   controllers: [AppController],

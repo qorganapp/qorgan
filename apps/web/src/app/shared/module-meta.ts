@@ -24,6 +24,15 @@ export const FULL_SWEEP: SectionMeta = {
   gradient: ['#7c5cff', '#ff5ca8'],
 };
 
+export const SPACE: SectionMeta = {
+  title: 'Overview',
+  tagline: 'Everything in this space',
+  description:
+    'Repositories that belong together, how they depend on each other, and one agent that knows all of them.',
+  icon: 'layers',
+  gradient: ['#2f7df6', '#22c7b8'],
+};
+
 export const REPOSITORIES: SectionMeta = {
   title: 'Repositories',
   tagline: 'Connected GitHub repositories',

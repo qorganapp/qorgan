@@ -1,0 +1,142 @@
+:host {
+  display: block;
+}
+.empty {
+  margin: 0;
+  font-size: 13px;
+}
+.feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+
+  li {
+    position: relative;
+  }
+}
+.feed-item {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  padding: 9px 8px;
+  margin: 0 -8px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: var(--glass);
+  }
+}
+.feed-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+
+  &[data-kind='fix'] {
+    background: linear-gradient(135deg, #11c5a8, #7be26b);
+  }
+  &[data-kind='review'] {
+    background: linear-gradient(135deg, #3b6dff, #3fd2ff);
+  }
+  &[data-kind='chat'] {
+    background: linear-gradient(135deg, #ffb23f, #ff5f3d);
+  }
+}
+.feed-main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.feed-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+
+  .faint {
+    font-size: 12px;
+  }
+}
+.feed-summary {
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.chip {
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+  background: var(--glass-strong);
+
+  &[data-status='failed'],
+  &[data-status='refused'] {
+    color: var(--sev-critical);
+  }
+  &[data-status='running'] {
+    color: var(--accent-b);
+  }
+}
+.feed-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 6px 38px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-b);
+  text-decoration: none;
+}
+.steps {
+  margin: 2px 0 10px 38px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.2);
+  border: 1px solid var(--glass-border);
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+
+  p {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+.step-text {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.step-call code {
+  color: var(--accent-b);
+}
+.step-call.err code {
+  color: var(--sev-high);
+}
+
+.feed-icon[data-kind='map'] {
+  background: linear-gradient(135deg, #2f7df6, #22c7b8);
+}
+.repo-tag {
+  font-size: 12px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}

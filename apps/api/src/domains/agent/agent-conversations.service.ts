@@ -24,9 +24,9 @@ export class AgentConversationsService {
     private readonly queue: AgentQueue,
   ) {}
 
-  list(repositoryId: string, userId: string) {
+  list(spaceId: string, userId: string) {
     return this.conversations.find({
-      where: { repositoryId, userId },
+      where: { spaceId, userId },
       order: { updatedAt: 'DESC' },
       take: 30,
     });
@@ -42,9 +42,16 @@ export class AgentConversationsService {
     return conversation;
   }
 
-  async start(repositoryId: string, userId: string, content: string) {
+  /** `repositoryId` — фокус разговора; null — вопрос ко всему пространству. */
+  async start(
+    spaceId: string,
+    userId: string,
+    content: string,
+    repositoryId: string | null = null,
+  ) {
     const conversation = await this.conversations.save(
       this.conversations.create({
+        spaceId,
         repositoryId,
         userId,
         title: content.slice(0, 80),
@@ -54,12 +61,24 @@ export class AgentConversationsService {
     return this.get(conversation.id, userId);
   }
 
-  async post(id: string, userId: string, content: string) {
+  /** `repositoryId`: undefined — фокус не меняется, null — всё пространство. */
+  async post(
+    id: string,
+    userId: string,
+    content: string,
+    repositoryId?: string | null,
+  ) {
     const conversation = await this.get(id, userId);
     if (conversation.messages.some((m) => m.status === MessageStatus.Pending)) {
       throw new ConflictException(
         'The agent is still answering the previous question',
       );
+    }
+    if (
+      repositoryId !== undefined &&
+      repositoryId !== conversation.repositoryId
+    ) {
+      await this.conversations.update(conversation.id, { repositoryId });
     }
     await this.ask(conversation, content);
     return this.get(id, userId);

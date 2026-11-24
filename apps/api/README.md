@@ -68,7 +68,7 @@ Events: *Push*, *Pull request*, *Installation*, *Installation repositories*.
 > Этот раздел описывает деплой из исходных репозиториев `qorgan-app-backend` и `qorgan-app`:
 > продакшен пока собирается из них, CI монорепозитория образы не публикует и не деплоит.
 
-Работает на `https://qorgan.shoqan.dev` (сервер `77.240.38.74`, Ubuntu 24.04).
+Работает на `https://qorgan.shoqan.dev` (Ubuntu 24.04).
 
 ```
 Caddy (TLS, Let's Encrypt) ── /api/* → 127.0.0.1:3000 (api)

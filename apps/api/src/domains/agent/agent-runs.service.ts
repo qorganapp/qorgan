@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Repository } from 'typeorm';
+import { In, MoreThan, Repository } from 'typeorm';
 import {
   AgentRun,
   AgentRunKind,
@@ -32,15 +32,18 @@ export class AgentRunsService {
     );
   }
 
+  /** `scope` — id репозитория либо пространство (с необязательным репозиторием в фокусе). */
   start(
-    repositoryId: string,
+    scope: string | { spaceId: string; repositoryId?: string | null },
     kind: AgentRunKind,
     title: string,
     target: Record<string, unknown> = {},
   ) {
-    return this.runs.save(
-      this.runs.create({ repositoryId, kind, title, target }),
-    );
+    const owner =
+      typeof scope === 'string'
+        ? { repositoryId: scope, spaceId: null }
+        : { repositoryId: scope.repositoryId ?? null, spaceId: scope.spaceId };
+    return this.runs.save(this.runs.create({ ...owner, kind, title, target }));
   }
 
   async recordStep(runId: string, step: StepRecord): Promise<void> {
@@ -89,6 +92,20 @@ export class AgentRunsService {
       .createQueryBuilder('r')
       .select('COALESCE(SUM(r.inputTokens + r.outputTokens), 0)', 'used')
       .where('r.repositoryId = :repositoryId', { repositoryId })
+      // Запуски пространства (чат, карта) тратят бюджет пространства, а не репозитория.
+      .andWhere('r.spaceId IS NULL')
+      .andWhere('r.createdAt > :since', { since })
+      .getRawOne<{ used: string }>();
+    return this.dailyBudget - Number(row?.used ?? 0);
+  }
+
+  /** Сколько токенов ещё можно потратить агенту пространства за последние сутки. */
+  async remainingSpaceBudget(spaceId: string): Promise<number> {
+    const since = new Date(Date.now() - 24 * 3600_000);
+    const row = await this.runs
+      .createQueryBuilder('r')
+      .select('COALESCE(SUM(r.inputTokens + r.outputTokens), 0)', 'used')
+      .where('r.spaceId = :spaceId', { spaceId })
       .andWhere('r.createdAt > :since', { since })
       .getRawOne<{ used: string }>();
     return this.dailyBudget - Number(row?.used ?? 0);
@@ -102,9 +119,24 @@ export class AgentRunsService {
     });
   }
 
+  /** Всё, что агент делал в пространстве: его чаты и карта плюс запуски по его репозиториям. */
+  listForSpace(spaceId: string, repositoryIds: string[], limit = 50) {
+    return this.runs.find({
+      where: [
+        { spaceId },
+        ...(repositoryIds.length ? [{ repositoryId: In(repositoryIds) }] : []),
+      ],
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
   async getWithSteps(id: string, userId: string) {
     const run = await this.runs.findOne({
-      where: { id, repository: { installation: { userId } } },
+      where: [
+        { id, repository: { installation: { userId } } },
+        { id, space: { userId } },
+      ],
       relations: { stepLog: true },
       order: { stepLog: { index: 'ASC' } },
     });

@@ -27,7 +27,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/shell/shell').then((m) => m.Shell),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'sweep' },
+      { path: '', pathMatch: 'full', redirectTo: 'space' },
+      {
+        path: 'space',
+        loadComponent: () => import('./features/space/space-page').then((m) => m.SpacePage),
+        title: 'Overview · Qorgan',
+      },
       {
         path: 'sweep',
         loadComponent: () => import('./features/full-sweep/full-sweep').then((m) => m.FullSweep),

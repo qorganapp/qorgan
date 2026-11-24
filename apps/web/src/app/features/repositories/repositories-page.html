@@ -47,9 +47,15 @@
             }
           </span>
         </div>
-        <button class="btn btn-sm" type="button" (click)="openRepo(repo)">
-          Open <app-icon name="chevronRight" [size]="14" />
-        </button>
+        @if (inSpace().has(repo.id)) {
+          <button class="btn btn-sm" type="button" (click)="openRepo(repo)">
+            Open <app-icon name="chevronRight" [size]="14" />
+          </button>
+        } @else if (spaces.selected(); as space) {
+          <button class="btn btn-sm" type="button" (click)="addToSpace(repo)">
+            <app-icon name="plus" [size]="14" /> Add to {{ space.name }}
+          </button>
+        }
       </li>
     }
   </ul>

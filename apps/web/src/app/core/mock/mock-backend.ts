@@ -1,4 +1,5 @@
 import {
+  AgentRun,
   Finding,
   FixNowItem,
   ModuleRun,
@@ -9,12 +10,16 @@ import {
   ScanSummary,
   SEVERITIES,
   Severity,
+  SpaceDetail,
+  SpaceListItem,
+  SpaceOverview,
 } from '../api/api.types';
 import demo from './demo-scan.json';
 import {
   applyDemoVerdicts,
   DEMO_FIXES,
   demoActivity,
+  demoGraph,
   demoRunDetails,
   MockChat,
 } from './mock-agent';
@@ -68,12 +73,15 @@ export class MockBackend {
   private readonly scans: (Scan & { startedMs: number })[] = [];
   private readonly findings = new Map<string, Finding[]>();
   private readonly chat: MockChat;
+  /** В демо уже есть пространство с обоими репозиториями — дэшборд сразу не пустой. */
+  private readonly spaces: MockSpace[] = [];
 
   constructor(private readonly now: () => number = Date.now) {
     this.chat = new MockChat(now);
     // У первого репозитория уже есть вчерашний скан — сразу видно экран результатов.
     const yesterday = this.now() - 26 * 3600_000;
     this.createScan('r-shop', yesterday);
+    this.spaces.push(this.newSpace('Demo space', ['r-shop', 'r-infra'], yesterday));
   }
 
   handle(req: MockRequest): MockResponse {
@@ -87,34 +95,40 @@ export class MockBackend {
     if (method === 'GET' && path === '/api/repositories') return ok(this.repos);
     if (method === 'GET' && path === '/api/agent/status')
       return ok({ enabled: true, provider: 'anthropic', model: 'claude-opus-5-5' });
-    if (
-      (m = path.match(
-        /^\/api\/repositories\/([^/]+)\/agent\/(activity|fixes|settings|conversations)$/,
-      ))
-    ) {
+    if (path === '/api/spaces') {
+      if (method === 'POST') {
+        const { name, repositoryIds = [] } = req.body as { name: string; repositoryIds?: string[] };
+        const space = this.newSpace(name.trim(), this.known(repositoryIds));
+        this.spaces.push(space);
+        return ok(this.detail(space));
+      }
+      return ok(this.spaces.map((sp) => this.listItem(sp)));
+    }
+    if ((m = path.match(/^\/api\/spaces\/([^/]+)(\/.*)?$/))) {
+      const space = this.spaces.find((sp) => sp.id === m![1]);
+      if (!space) return notFound();
+      return this.space(space, method, m[2] ?? '', req.body);
+    }
+    if ((m = path.match(/^\/api\/repositories\/([^/]+)\/agent\/(activity|fixes|settings)$/))) {
       const repo = this.repos.find((r) => r.id === m![1]);
       if (!repo) return notFound();
       switch (m[2]) {
-        case 'activity': {
-          const done = [...this.scans]
-            .reverse()
-            .find((sc) => sc.repositoryId === repo.id && this.publicScan(sc).status === 'done');
-          return ok(demoActivity(repo.id, done ? this.publicScan(done).finishedAt : null));
-        }
+        case 'activity':
+          return ok(demoActivity(repo.id, this.lastDoneAt(repo.id)));
         case 'fixes':
           return ok(repo.id === 'r-shop' ? DEMO_FIXES : []);
         case 'settings':
           Object.assign(repo, req.body as object);
           return ok(repo);
-        case 'conversations':
-          if (method === 'POST')
-            return ok(this.chat.start(repo.id, (req.body as { content: string }).content));
-          return ok(this.chat.list(repo.id));
       }
     }
     if ((m = path.match(/^\/api\/agent\/conversations\/([^/]+)(\/messages)?$/))) {
       if (m[2]) {
-        const res = this.chat.post(m[1], (req.body as { content: string }).content);
+        const { content, repositoryId } = req.body as {
+          content: string;
+          repositoryId?: string | null;
+        };
+        const res = this.chat.post(m[1], content, repositoryId);
         if (res === 'busy')
           return {
             status: 409,
@@ -127,7 +141,9 @@ export class MockBackend {
     }
     if ((m = path.match(/^\/api\/agent\/runs\/([^/]+)$/))) {
       const run = demoActivity('r-shop', iso(this.now())).find((r) => r.id === m![1]);
-      return run ? ok(demoRunDetails(run)) : notFound();
+      if (run) return ok(demoRunDetails(run));
+      const map = this.spaces.map((sp) => this.mapRun(sp)).find((r) => r?.id === m![1]);
+      return map ? ok({ ...map, stepLog: [] }) : notFound();
     }
     if (method === 'GET' && path === '/api/github/installations')
       return ok([
@@ -171,6 +187,179 @@ export class MockBackend {
       return ok(hits[0]);
     }
     return notFound();
+  }
+
+  private space(space: MockSpace, method: string, rest: string, body: unknown): MockResponse {
+    let m: RegExpMatchArray | null;
+    switch (rest) {
+      case '':
+        if (method === 'PATCH') space.name = (body as { name: string }).name.trim();
+        if (method === 'DELETE') {
+          this.spaces.splice(this.spaces.indexOf(space), 1);
+          return { status: 204, body: null };
+        }
+        return ok(this.detail(space));
+      case '/repositories': {
+        const fresh = this.known((body as { repositoryIds: string[] }).repositoryIds).filter(
+          (id) => !space.repositoryIds.includes(id),
+        );
+        if (fresh.length) {
+          space.repositoryIds.push(...fresh);
+          space.repositoriesChangedMs = this.now();
+        }
+        return ok(this.detail(space));
+      }
+      case '/overview':
+        return ok(this.overview(space));
+      case '/graph':
+        return ok(this.graph(space));
+      case '/graph/refresh':
+        if (this.graph(space).status !== 'running') space.mapStartedMs = this.now();
+        return { status: 202, body: this.graph(space) };
+      case '/agent/conversations': {
+        if (method !== 'POST') return ok(this.chat.list(space.id));
+        const { content, repositoryId } = body as { content: string; repositoryId?: string | null };
+        if (repositoryId && !space.repositoryIds.includes(repositoryId)) return notFound();
+        return ok(this.chat.start(space.id, content, repositoryId ?? null));
+      }
+      case '/agent/activity': {
+        const runs = space.repositoryIds.flatMap((id) => demoActivity(id, this.lastDoneAt(id)));
+        const map = this.mapRun(space);
+        return ok(
+          [...(map ? [map] : []), ...runs].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+        );
+      }
+      case '/agent/fixes':
+        return ok(space.repositoryIds.includes('r-shop') ? DEMO_FIXES : []);
+    }
+    if (method === 'DELETE' && (m = rest.match(/^\/repositories\/([^/]+)$/))) {
+      const at = space.repositoryIds.indexOf(m[1]);
+      if (at >= 0) {
+        space.repositoryIds.splice(at, 1);
+        space.repositoriesChangedMs = this.now();
+      }
+      return ok(this.detail(space));
+    }
+    return notFound();
+  }
+
+  private newSpace(name: string, repositoryIds: string[], at = this.now()): MockSpace {
+    return {
+      id: `sp-${this.spaces.length + 1}-${at}`,
+      name,
+      repositoryIds,
+      createdMs: at,
+      repositoriesChangedMs: at,
+      mapStartedMs: null,
+    };
+  }
+
+  private known(ids: string[]): string[] {
+    return [...new Set(ids)].filter((id) => this.repos.some((r) => r.id === id));
+  }
+
+  private listItem(space: MockSpace): SpaceListItem {
+    return {
+      id: space.id,
+      name: space.name,
+      repositoriesChangedAt: iso(space.repositoriesChangedMs),
+      createdAt: iso(space.createdMs),
+      updatedAt: iso(space.repositoriesChangedMs),
+      repositoryCount: space.repositoryIds.length,
+    };
+  }
+
+  private reposOf(space: MockSpace): Repository[] {
+    return this.repos.filter((r) => space.repositoryIds.includes(r.id));
+  }
+
+  private detail(space: MockSpace): SpaceDetail {
+    const { repositoryCount: _count, ...item } = this.listItem(space);
+    return { ...item, repositories: this.reposOf(space) };
+  }
+
+  private graph(space: MockSpace) {
+    return demoGraph(
+      space.id,
+      this.reposOf(space),
+      space.mapStartedMs,
+      this.now(),
+      space.mapStartedMs !== null && space.repositoriesChangedMs > space.mapStartedMs,
+    );
+  }
+
+  /** Запись в журнале агента о построенной карте. */
+  private mapRun(space: MockSpace): AgentRun | null {
+    const graph = this.graph(space);
+    if (graph.status !== 'done' || !graph.generatedAt) return null;
+    return {
+      id: graph.runId!,
+      repositoryId: null,
+      spaceId: space.id,
+      kind: 'map',
+      status: 'done',
+      title: `Map of ${space.name}`,
+      summary: graph.edges.length
+        ? 'platform-infra deploys demo-shop and its public bucket; both pin a vulnerable minimist.'
+        : 'No connections found between these repositories.',
+      target: { relationships: graph.edges.length },
+      model: 'claude-opus-5-5',
+      inputTokens: 48_200,
+      outputTokens: 2_100,
+      steps: 14,
+      error: null,
+      createdAt: graph.generatedAt,
+      finishedAt: graph.generatedAt,
+    };
+  }
+
+  private lastDoneAt(repositoryId: string): string | null {
+    const done = [...this.scans]
+      .reverse()
+      .find((sc) => sc.repositoryId === repositoryId && this.publicScan(sc).status === 'done');
+    return done ? this.publicScan(done).finishedAt : null;
+  }
+
+  private overview(space: MockSpace): SpaceOverview {
+    const zero = () =>
+      Object.fromEntries(SEVERITIES.map((s) => [s, 0])) as Record<Severity, number>;
+    const overview: SpaceOverview = {
+      spaceId: space.id,
+      totals: { repositories: space.repositoryIds.length, scanned: 0, open: 0 },
+      bySeverity: zero(),
+      byModule: {},
+      repositories: [],
+    };
+    for (const repo of this.reposOf(space)) {
+      const scans = this.scans.filter((s) => s.repositoryId === repo.id);
+      const last = scans.at(-1);
+      const done = [...scans].reverse().find((s) => this.publicScan(s).status === 'done');
+      const open = (done ? (this.findings.get(done.id) ?? []) : []).filter(
+        (f) => f.status === 'open',
+      );
+      const bySeverity = zero();
+      for (const f of open) {
+        bySeverity[f.severity]++;
+        overview.bySeverity[f.severity]++;
+        overview.byModule[f.module] = (overview.byModule[f.module] ?? 0) + 1;
+      }
+      overview.totals.open += open.length;
+      if (done) overview.totals.scanned++;
+      const view = last ? this.publicScan(last) : null;
+      overview.repositories.push({
+        repositoryId: repo.id,
+        lastScan: view && {
+          id: view.id,
+          status: view.status,
+          triageStatus: view.triageStatus ?? null,
+          createdAt: view.createdAt,
+          finishedAt: view.finishedAt,
+        },
+        open: open.length,
+        bySeverity,
+      });
+    }
+    return overview;
   }
 
   private auth(method: string, path: string, body: unknown): MockResponse {
@@ -328,6 +517,16 @@ export class MockBackend {
   private signedIn(): boolean {
     return this.session() !== null;
   }
+}
+
+interface MockSpace {
+  id: string;
+  name: string;
+  repositoryIds: string[];
+  createdMs: number;
+  repositoriesChangedMs: number;
+  /** Когда запустили построение карты; null — карту ещё не строили. */
+  mapStartedMs: number | null;
 }
 
 const SEVERITY_WEIGHT: Record<Severity, number> = {

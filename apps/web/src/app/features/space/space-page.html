@@ -1,0 +1,225 @@
+@if (!spaces.loaded()) {
+  <p class="faint loading">Loading your spaces…</p>
+} @else if (spaces.error() && !spaces.spaces().length) {
+  <section class="empty glass enter-up" role="alert">
+    <h1>Could not load your spaces</h1>
+    <p class="muted">Check your connection and try again.</p>
+    <button class="btn" type="button" (click)="spaces.load()">
+      <app-icon name="refresh" [size]="16" /> Try again
+    </button>
+  </section>
+} @else if (!spaces.selected()) {
+  <section class="empty glass enter-up">
+    <app-section-badge [meta]="meta" [size]="64" />
+    <h1>Create your first space</h1>
+    <p class="muted">
+      A space groups repositories that belong together — the services of one product, an app and its
+      infrastructure, or simply all of them. Its agent reads every repository in the space and
+      understands how they connect.
+    </p>
+    <button class="btn btn-primary" type="button" (click)="modal.set('create')">
+      <app-icon name="plus" [size]="18" /> New space
+    </button>
+  </section>
+} @else {
+  @let space = spaces.selected()!;
+  <header class="hero enter-up">
+    <app-section-badge [meta]="meta" [size]="64" />
+    <div class="hero-text">
+      <h1>{{ space.name }}</h1>
+      <p class="muted">
+        {{ space.repositoryCount }}
+        {{ space.repositoryCount === 1 ? 'repository' : 'repositories' }} · one agent for the whole
+        space
+      </p>
+    </div>
+    <div class="hero-actions">
+      <button class="btn btn-ghost btn-sm icon-btn" type="button" (click)="startRename()">
+        <app-icon name="edit" [size]="16" /><span class="sr-only">Rename space</span>
+      </button>
+      <button class="btn btn-ghost btn-sm icon-btn" type="button" (click)="modal.set('delete')">
+        <app-icon name="trash" [size]="16" /><span class="sr-only">Delete space</span>
+      </button>
+      <button class="btn btn-primary" type="button" (click)="modal.set('add')">
+        <app-icon name="plus" [size]="16" /> Add repositories
+      </button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="main-col">
+      <section class="summary glass enter-up" style="animation-delay: 60ms" aria-label="Summary">
+        <div class="headline">
+          <span class="figure">{{ overview()?.totals?.open ?? '–' }}</span>
+          <span class="muted">open findings across the space</span>
+          <span class="faint scanned">
+            {{ overview()?.totals?.scanned ?? 0 }} of {{ space.repositoryCount }} repositories
+            scanned
+          </span>
+        </div>
+        <ul class="severities">
+          @for (sev of severities; track sev) {
+            <li>
+              <span class="dot" [attr.data-sev]="sev"></span>
+              <span class="num">{{ overview()?.bySeverity?.[sev] ?? 0 }}</span>
+              <span class="faint">{{ severityLabel[sev] }}</span>
+            </li>
+          }
+        </ul>
+        <ul class="modules">
+          @for (m of modules; track m.id) {
+            <li>
+              <app-section-badge [meta]="m" [size]="26" />
+              <span class="muted">{{ m.title }}</span>
+              <strong>{{ overview()?.byModule?.[m.id] ?? 0 }}</strong>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <section aria-label="Repositories">
+        <h2 class="section-title">Repositories</h2>
+        @if (!spaces.detail()) {
+          <p class="faint">Loading repositories…</p>
+        } @else if (!cards().length) {
+          <div class="empty-row glass">
+            <p class="muted">This space has no repositories yet.</p>
+            <button class="btn btn-sm" type="button" (click)="modal.set('add')">
+              <app-icon name="plus" [size]="14" /> Add repositories
+            </button>
+          </div>
+        } @else {
+          <ul class="repo-grid">
+            @for (card of cards(); track card.repo.id; let i = $index) {
+              <li class="repo glass enter-up" [style.animation-delay.ms]="90 + i * 40">
+                <div class="repo-head">
+                  <span class="repo-icon"><app-icon name="repo" [size]="18" /></span>
+                  <div class="repo-name">
+                    <strong [title]="card.repo.fullName">{{ card.repo.fullName }}</strong>
+                    <span class="faint meta-line">
+                      <app-icon name="branch" [size]="12" /> {{ card.repo.defaultBranch }}
+                      @if (card.overview?.lastScan; as scan) {
+                        · swept {{ scan.createdAt | timeAgo }}
+                        @if (scan.status !== 'done') {
+                          <span class="status" [attr.data-status]="scan.status">{{
+                            scan.status
+                          }}</span>
+                        }
+                      } @else if (card.overview) {
+                        · never swept
+                      }
+                    </span>
+                  </div>
+                </div>
+                <ul class="repo-sev">
+                  @for (sev of severities; track sev) {
+                    @if (card.overview?.bySeverity?.[sev]; as count) {
+                      <li>
+                        <span class="dot" [attr.data-sev]="sev"></span>
+                        <span class="num">{{ count }}</span>
+                        <span class="faint">{{ severityLabel[sev] }}</span>
+                      </li>
+                    }
+                  }
+                  @if (card.overview && !card.overview.open) {
+                    <li class="faint">
+                      {{
+                        card.overview.lastScan
+                          ? 'No open findings'
+                          : 'Run a Full Sweep to see findings'
+                      }}
+                    </li>
+                  }
+                </ul>
+                <div class="repo-actions">
+                  <button class="btn btn-sm" type="button" (click)="openRepo(card.repo)">
+                    Open <app-icon name="chevronRight" [size]="14" />
+                  </button>
+                  <button
+                    class="btn btn-ghost btn-sm"
+                    type="button"
+                    (click)="removeRepo(card.repo)"
+                  >
+                    Remove<span class="sr-only"> {{ card.repo.fullName }} from this space</span>
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <app-space-map
+        class="enter-up"
+        style="animation-delay: 140ms"
+        [spaceId]="space.id"
+        [repositoryCount]="cards().length"
+        (built)="loadActivity()"
+      />
+    </div>
+
+    <aside class="agent-col">
+      <app-agent-chat
+        class="enter-up"
+        style="animation-delay: 100ms"
+        [spaceId]="space.id"
+        [spaceName]="space.name"
+        [repositories]="repos.scoped()"
+        [enabled]="!!status()?.enabled"
+        (answered)="loadActivity()"
+      />
+      @if (status() && !status()!.enabled) {
+        <p class="faint note">
+          <app-icon name="alert" [size]="14" /> The agent is not configured on this server.
+        </p>
+      }
+      <section class="card glass enter-up" style="animation-delay: 160ms">
+        <h3>
+          What the agent did
+          <a class="more" routerLink="/agent">All activity</a>
+        </h3>
+        <app-agent-activity [runs]="activity()" [repositories]="repos.scoped()" [limit]="5" />
+      </section>
+    </aside>
+  </div>
+}
+
+<app-create-space-dialog [open]="modal() === 'create'" (closed)="modal.set(null)" />
+<app-add-repositories-dialog [open]="modal() === 'add'" (closed)="modal.set(null)" />
+
+<app-dialog title="Rename space" [open]="modal() === 'rename'" (closed)="modal.set(null)">
+  <form class="form" (ngSubmit)="rename()">
+    <label class="field">
+      Name
+      <input
+        class="input"
+        name="name"
+        [(ngModel)]="newName"
+        maxlength="60"
+        autocomplete="off"
+        autofocus
+      />
+    </label>
+    <div class="actions">
+      <button class="btn" type="button" (click)="modal.set(null)">Cancel</button>
+      <button class="btn btn-primary" type="submit" [disabled]="!newName.trim() || busy()">
+        Save
+      </button>
+    </div>
+  </form>
+</app-dialog>
+
+<app-dialog title="Delete this space?" [open]="modal() === 'delete'" (closed)="modal.set(null)">
+  <div class="form">
+    <p class="muted">
+      “{{ spaces.selected()?.name }}”, its conversations with the agent and its relationship map
+      will be deleted. Repositories, scans and findings stay.
+    </p>
+    <div class="actions">
+      <button class="btn" type="button" (click)="modal.set(null)">Keep space</button>
+      <button class="btn danger" type="button" [disabled]="busy()" (click)="remove()">
+        Delete space
+      </button>
+    </div>
+  </div>
+</app-dialog>

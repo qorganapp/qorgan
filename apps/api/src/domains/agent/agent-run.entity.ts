@@ -9,12 +9,15 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { GitRepository } from '../repositories/git-repository.entity';
+import { Space } from '../spaces/space.entity';
 
 export enum AgentRunKind {
   Triage = 'triage',
   Fix = 'fix',
   Review = 'review',
   Chat = 'chat',
+  /** Построение карты связей между репозиториями пространства. */
+  Map = 'map',
 }
 
 export enum AgentRunStatus {
@@ -30,16 +33,26 @@ export enum AgentRunStatus {
 /** Один запуск агента — для ленты активности и аудита автономных действий. */
 @Entity('agent_runs')
 @Index(['repositoryId', 'createdAt'])
+@Index(['spaceId', 'createdAt'])
 export class AgentRun {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid' })
-  repositoryId: string;
+  /** null — запуск относится к пространству целиком (чат без фокуса, карта связей). */
+  @Column({ type: 'uuid', nullable: true })
+  repositoryId: string | null;
 
-  @ManyToOne(() => GitRepository, { onDelete: 'CASCADE' })
+  @ManyToOne(() => GitRepository, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'repositoryId' })
-  repository: GitRepository;
+  repository: GitRepository | null;
+
+  /** Пространство, в котором работал агент: чат и карта связей. */
+  @Column({ type: 'uuid', nullable: true })
+  spaceId: string | null;
+
+  @ManyToOne(() => Space, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'spaceId' })
+  space: Space | null;
 
   @Column({ type: 'enum', enum: AgentRunKind })
   kind: AgentRunKind;

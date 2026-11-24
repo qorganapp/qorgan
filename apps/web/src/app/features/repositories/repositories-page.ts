@@ -1,9 +1,18 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { GithubInstallation, Repository, Scan } from '../../core/api/api.types';
 import { QorganApi } from '../../core/api/qorgan-api';
 import { apiErrorMessage } from '../../core/api/api.types';
 import { RepoContext } from '../../core/state/repo-context';
+import { SpaceContext } from '../../core/state/space-context';
 import { Toasts } from '../../core/state/toasts';
 import { Icon } from '../../shared/icon';
 import { REPOSITORIES } from '../../shared/module-meta';
@@ -22,6 +31,9 @@ export class RepositoriesPage implements OnInit {
   private readonly router = inject(Router);
   private readonly toasts = inject(Toasts);
   protected readonly repos = inject(RepoContext);
+  protected readonly spaces = inject(SpaceContext);
+  /** Репозитории текущего пространства: только их можно открыть для сканирования. */
+  protected readonly inSpace = computed(() => new Set(this.repos.scoped().map((r) => r.id)));
 
   /** ?installed=1 — вернулись со страницы установки GitHub App */
   readonly installed = input<string>();
@@ -79,6 +91,16 @@ export class RepositoriesPage implements OnInit {
   openRepo(repo: Repository): void {
     this.repos.select(repo.id);
     void this.router.navigateByUrl('/sweep');
+  }
+
+  addToSpace(repo: Repository): void {
+    const space = this.spaces.selected();
+    if (!space) return;
+    this.spaces.addRepositories(space.id, [repo.id]).subscribe({
+      next: () => this.toasts.show(`${repo.fullName} added to ${space.name}`, 'success'),
+      error: (e: unknown) =>
+        this.toasts.show(apiErrorMessage(e, 'Could not add the repository'), 'error'),
+    });
   }
 
   private loadLastScans(): void {

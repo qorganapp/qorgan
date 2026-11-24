@@ -4,6 +4,7 @@ import {
   computed,
   effect,
   inject,
+  signal,
   untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -13,6 +14,7 @@ import { Auth } from '../../core/api/auth';
 import { isMockMode } from '../../core/mock/mock-mode';
 import { RepoContext } from '../../core/state/repo-context';
 import { ScanSession } from '../../core/state/scan-session';
+import { SpaceContext } from '../../core/state/space-context';
 import { Icon } from '../../shared/icon';
 import {
   AGENT,
@@ -20,10 +22,13 @@ import {
   MODULE_LIST,
   MODULES,
   REPOSITORIES,
+  SPACE,
   SectionMeta,
   isScanModule,
 } from '../../shared/module-meta';
 import { SectionBadge } from '../../shared/section-badge';
+import { CreateSpaceDialog } from '../space/space-dialogs';
+import { SpaceSwitcher } from './space-switcher';
 
 interface NavItem {
   link: string;
@@ -33,7 +38,15 @@ interface NavItem {
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, SectionBadge],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    Icon,
+    SectionBadge,
+    SpaceSwitcher,
+    CreateSpaceDialog,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
@@ -45,6 +58,7 @@ interface NavItem {
 export class Shell {
   protected readonly auth = inject(Auth);
   protected readonly repos = inject(RepoContext);
+  protected readonly spaces = inject(SpaceContext);
   protected readonly session = inject(ScanSession);
   private readonly router = inject(Router);
   protected readonly demo = isMockMode();
@@ -64,6 +78,7 @@ export class Shell {
     if (isScanModule(module)) return MODULES[module];
     if (url.startsWith('/repositories')) return REPOSITORIES;
     if (url.startsWith('/agent')) return AGENT;
+    if (url.startsWith('/space')) return SPACE;
     return FULL_SWEEP;
   });
 
@@ -76,9 +91,12 @@ export class Shell {
   });
   protected readonly reposMeta = REPOSITORIES;
   protected readonly agentMeta = AGENT;
+  protected readonly spaceMeta = SPACE;
+  protected readonly creatingSpace = signal(false);
 
   constructor() {
     this.repos.load();
+    this.spaces.load();
     // Выбранный репозиторий → его последний скан (для всех экранов сразу).
     // untracked: open() читает сигналы сессии — без него они стали бы зависимостями эффекта
     // и вызывали бы бесконечную перезагрузку сканов.

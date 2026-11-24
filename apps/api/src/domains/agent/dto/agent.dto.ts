@@ -3,6 +3,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -14,6 +15,11 @@ export class ChatMessageDto {
   @MinLength(1)
   @MaxLength(4000)
   content: string;
+
+  /** Фокус вопроса: репозиторий пространства. Не указан или null — всё пространство. */
+  @IsOptional()
+  @IsUUID()
+  repositoryId?: string | null;
 }
 
 export class AgentSettingsDto {

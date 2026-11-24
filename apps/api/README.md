@@ -23,6 +23,11 @@
 - **Ревью PR** — на каждый PR сканирует только изменения и оставляет inline-комментарии;
   никогда не ставит approve.
 - **Журнал** — каждый шаг агента сохраняется (`agent_runs`, `agent_steps`).
+- **Пространства** — группа репозиториев пользователя (репозиторий может входить в несколько).
+  Чат с агентом принадлежит пространству: агент читает код любого его репозитория
+  (инструменты с аргументом `repo`, клон делается при первом обращении) и видит связи между ними.
+- **Карта связей** — по кнопке: манифесты npm/Python дают связи «использует пакет» и «общая
+  зависимость» (с пометкой уязвимых), затем агент ищет в коде вызовы между сервисами.
 
 LLM подключается через `LlmProvider` (`LLM_PROVIDER`); первая реализация — Anthropic.
 Код репозитория считается недоверенными данными, найденные секреты маскируются до отправки в
@@ -100,6 +105,14 @@ cd /opt/qorgan && sudo -u deploy docker compose --env-file .env --env-file tags.
 | GET | `/scans/:id/summary` | Full Sweep: счётчики + `fixNow` |
 | GET | `/scans/:id/findings`, `/repositories/:id/findings` | `?module=&severity=&status=&limit=&offset=` |
 | PATCH | `/findings/:id` | `{"status":"ignored"\|"open"}` |
+| GET, POST | `/spaces` | пространства; создание: `{"name":"…","repositoryIds":[…]}` |
+| GET, PATCH, DELETE | `/spaces/:id` | пространство с репозиториями, переименование, удаление |
+| POST | `/spaces/:id/repositories` | добавить: `{"repositoryIds":[…]}` |
+| DELETE | `/spaces/:id/repositories/:repositoryId` | убрать репозиторий из пространства |
+| GET | `/spaces/:id/overview` | сводка находок и последних сканов по репозиториям |
+| GET | `/spaces/:id/graph`, POST `/spaces/:id/graph/refresh` | карта связей и её построение |
+| GET, POST | `/spaces/:id/agent/conversations` | чаты пространства: `{"content":"…","repositoryId":null}` |
+| GET | `/spaces/:id/agent/activity`, `/spaces/:id/agent/fixes` | действия агента и его PR по пространству |
 
 ## Тесты
 

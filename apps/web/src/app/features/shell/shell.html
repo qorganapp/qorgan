@@ -4,12 +4,18 @@
 </div>
 
 <aside class="sidebar">
-  <a class="brand" routerLink="/sweep">
+  <a class="brand" routerLink="/space">
     <span class="logo"><app-icon name="shield" [size]="20" [stroke]="2.2" /></span>
     <span class="brand-name">Qorgan</span>
   </a>
 
+  <app-space-switcher class="space-switch" (createRequested)="creatingSpace.set(true)" />
+
   <nav aria-label="Main">
+    <a class="nav-item" routerLink="/space" routerLinkActive="active" #sp="routerLinkActive">
+      <app-section-badge [meta]="spaceMeta" [size]="30" [class.dim]="!sp.isActive" />
+      <span class="nav-title">{{ spaceMeta.title }}</span>
+    </a>
     <a
       class="nav-item agent-item"
       routerLink="/agent"
@@ -35,7 +41,7 @@
         }
       </a>
     }
-    <p class="nav-label">Workspace</p>
+    <p class="nav-label">GitHub</p>
     <a class="nav-item" routerLink="/repositories" routerLinkActive="active" #r="routerLinkActive">
       <app-section-badge [meta]="reposMeta" [size]="30" [class.dim]="!r.isActive" />
       <span class="nav-title">{{ reposMeta.title }}</span>
@@ -64,12 +70,13 @@
 
 <div class="main">
   <header class="topbar">
-    @if (repos.repositories().length) {
+    <app-space-switcher class="space-switch-mobile" (createRequested)="creatingSpace.set(true)" />
+    @if (repos.scoped().length) {
       <label class="repo-switch glass">
         <app-icon name="repo" [size]="16" />
         <span class="sr-only">Repository</span>
         <select [value]="repos.selected()?.id" (change)="selectRepo($event)">
-          @for (repo of repos.repositories(); track repo.id) {
+          @for (repo of repos.scoped(); track repo.id) {
             <option [value]="repo.id" [selected]="repo.id === repos.selected()?.id">
               {{ repo.fullName }}
             </option>
@@ -96,3 +103,5 @@
     <router-outlet />
   </main>
 </div>
+
+<app-create-space-dialog [open]="creatingSpace()" (closed)="creatingSpace.set(false)" />

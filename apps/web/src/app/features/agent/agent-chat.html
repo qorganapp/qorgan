@@ -1,0 +1,92 @@
+<header class="chat-head">
+  <div>
+    <h2>Ask your security engineer</h2>
+    <p class="faint">
+      @if (focus(); as repo) {
+        Answers are grounded in {{ repo.fullName }}’s code and scan results.
+      } @else {
+        Answers are grounded in the code and scan results of every repository in
+        {{ spaceName() }}.
+      }
+    </p>
+  </div>
+  @if (conversation()) {
+    <button class="btn btn-sm btn-ghost" type="button" (click)="newChat()">
+      <app-icon name="plus" [size]="14" /> New chat
+    </button>
+  }
+</header>
+
+<div class="thread" #thread>
+  @if (!messages().length) {
+    <div class="welcome">
+      <app-section-badge [meta]="meta" [size]="44" />
+      <p>
+        Hi! I know every repository in this space: their code, scan results and how they connect.
+        Ask about one repository or about the space as a whole.
+      </p>
+      <div class="suggestions">
+        @for (s of suggestions(); track s) {
+          <button type="button" class="suggestion" (click)="send(s)" [disabled]="!canAsk()">
+            {{ s }}
+          </button>
+        }
+      </div>
+    </div>
+  }
+  @for (m of messages(); track m.id) {
+    <div class="msg" [attr.data-role]="m.role" animate.enter="enter-up">
+      @if (m.role === 'assistant') {
+        <app-section-badge [meta]="meta" [size]="28" class="avatar" />
+      }
+      <div class="bubble" [attr.data-status]="m.status">
+        @switch (m.status) {
+          @case ('pending') {
+            <span class="typing" aria-label="Agent is thinking"><i></i><i></i><i></i></span>
+            <span class="faint thinking">Reading the code…</span>
+          }
+          @case ('failed') {
+            <app-icon name="alert" [size]="14" /> {{ m.content || 'Something went wrong.' }}
+          }
+          @default {
+            @if (m.role === 'assistant') {
+              <app-markdown [text]="m.content" />
+            } @else {
+              {{ m.content }}
+            }
+          }
+        }
+      </div>
+    </div>
+  }
+</div>
+
+<div class="target-wrap">
+  <label class="target">
+    Ask about
+    <select [value]="focus()?.id ?? ''" (change)="setFocus($event)" [disabled]="!canAsk()">
+      <option value="" [selected]="!focus()">The whole space</option>
+      @for (repo of repositories(); track repo.id) {
+        <option [value]="repo.id" [selected]="repo.id === focus()?.id">{{ repo.fullName }}</option>
+      }
+    </select>
+  </label>
+  <form class="composer" (ngSubmit)="send()">
+    <textarea
+      name="draft"
+      rows="1"
+      [(ngModel)]="draft"
+      (keydown)="onKeydown($event)"
+      [disabled]="!canAsk()"
+      placeholder="Ask about a finding, a fix, or how the repositories connect…"
+      maxlength="4000"
+    ></textarea>
+    <button
+      class="btn btn-primary send"
+      type="submit"
+      [disabled]="!draft.trim() || sending() || answering() || !canAsk()"
+    >
+      <app-icon name="send" [size]="16" /><span class="sr-only">Send</span>
+    </button>
+  </form>
+</div>

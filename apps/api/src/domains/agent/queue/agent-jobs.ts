@@ -15,4 +15,8 @@ export interface ChatJob {
   messageId: string;
 }
 
-export type AgentJobName = 'fix' | 'review' | 'chat';
+export interface MapJob {
+  spaceId: string;
+}
+
+export type AgentJobName = 'fix' | 'review' | 'chat' | 'space-map';

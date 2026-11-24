@@ -1,0 +1,233 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: min(720px, calc(100dvh - 210px));
+  min-height: 520px;
+  overflow: hidden;
+}
+.chat-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--glass-border);
+
+  h2 {
+    font-size: 17px;
+  }
+  p {
+    margin: 4px 0 0;
+    font-size: 13px;
+  }
+}
+.thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.welcome {
+  margin: auto;
+  max-width: 460px;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+
+  p {
+    margin: 0;
+    color: var(--text-muted);
+  }
+}
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.suggestion {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s var(--ease-out);
+
+  &:hover:not(:disabled) {
+    background: var(--glass-hover);
+    transform: translateY(-1px);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+.msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: 86%;
+
+  &[data-role='user'] {
+    align-self: flex-end;
+  }
+}
+.avatar {
+  margin-top: 2px;
+}
+.bubble {
+  padding: 11px 15px;
+  border-radius: 18px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+
+  [data-role='user'] & {
+    color: #fff;
+    border: none;
+    border-bottom-right-radius: 6px;
+    background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+  }
+  [data-role='assistant'] & {
+    white-space: normal;
+    border-top-left-radius: 6px;
+  }
+  &[data-status='failed'] {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--sev-high);
+  }
+  &[data-status='pending'] {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+}
+.typing {
+  display: inline-flex;
+  gap: 4px;
+
+  i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    animation: dot 1.2s ease-in-out infinite;
+  }
+  i:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  i:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+}
+@keyframes dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+.thinking {
+  font-size: 13px;
+}
+.composer {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 14px;
+  border-top: 1px solid var(--glass-border);
+
+  textarea {
+    flex: 1;
+    min-width: 0;
+    resize: none;
+    min-height: 44px;
+    max-height: 160px;
+    field-sizing: content;
+    font-family: inherit;
+    color: inherit;
+    padding: 11px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass);
+    font-size: 14.5px;
+    line-height: 1.45;
+
+    &:focus {
+      outline: none;
+      border-color: color-mix(in srgb, var(--accent-b) 70%, transparent);
+    }
+  }
+}
+.send {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+
+/* Цель вопроса: всё пространство или один репозиторий. */
+.target {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+
+  select {
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-strong);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    text-overflow: ellipsis;
+
+    option {
+      color: #17151f;
+    }
+  }
+}
+.target + .composer {
+  border-top: none;
+  padding-top: 10px;
+}
+.target-wrap {
+  border-top: 1px solid var(--glass-border);
+}
+
+@media (max-width: 1000px) {
+  :host {
+    height: 70dvh;
+  }
+}
+@media (max-width: 760px) {
+  .msg {
+    max-width: 100%;
+  }
+  .thread {
+    padding: 14px;
+  }
+}

@@ -1,0 +1,53 @@
+<ol class="feed">
+  @for (run of visible(); track run.id) {
+    <li [attr.data-status]="run.status">
+      <button
+        type="button"
+        class="feed-item"
+        (click)="toggleRun(run)"
+        [attr.aria-expanded]="expandedRun()?.id === run.id"
+      >
+        <span class="feed-icon" [attr.data-kind]="run.kind"
+          ><app-icon [name]="kindIcon[run.kind]" [size]="15"
+        /></span>
+        <span class="feed-main">
+          <span class="feed-head">
+            <strong>{{ kindLabel[run.kind] }}</strong>
+            <span class="faint">{{ run.createdAt | timeAgo }}</span>
+            @if (run.status !== 'done') {
+              <span class="chip" [attr.data-status]="run.status">{{
+                run.status.replace('_', ' ')
+              }}</span>
+            }
+          </span>
+          @if (repoOf(run); as repo) {
+            <span class="repo-tag">{{ repo }}</span>
+          }
+          <span class="feed-summary">{{ run.summary || run.title }}</span>
+        </span>
+      </button>
+      @if (prOf(run); as url) {
+        <a class="feed-link" [href]="url" target="_blank" rel="noopener noreferrer"
+          >Open on GitHub <app-icon name="external" [size]="12"
+        /></a>
+      }
+      @if (expandedRun()?.id === run.id) {
+        <div class="steps" animate.enter="enter-fade">
+          @for (step of expandedRun()!.stepLog; track step.id) {
+            @if (step.text) {
+              <p class="step-text">{{ step.text }}</p>
+            }
+            @for (call of step.toolCalls; track $index) {
+              <p class="step-call" [class.err]="call.isError">
+                <code>{{ call.name }}</code>
+                <span class="faint mono">{{ toolInput(call.input) }}</span>
+              </p>
+            }
+          }
+        </div>
+      }
+    </li>
+  } @empty {
+    <li class="faint empty">Nothing yet. Run a Full Sweep and I’ll get to work.</li>
+  }
+</ol>

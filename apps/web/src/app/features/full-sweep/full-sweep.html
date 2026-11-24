@@ -1,4 +1,14 @@
-@if (repos.loaded() && !repos.repositories().length) {
+@if (repos.loaded() && repos.repositories().length && !repos.selected()) {
+  <section class="empty glass enter-up">
+    <app-section-badge [meta]="meta" [size]="64" />
+    <h1>No repository to sweep here</h1>
+    <p class="muted">
+      Sweeps run on a repository of the current space. Add repositories to the space, or create one
+      first.
+    </p>
+    <a class="btn btn-primary" routerLink="/space">Open the space overview</a>
+  </section>
+} @else if (repos.loaded() && !repos.repositories().length) {
   <section class="empty glass enter-up">
     <app-section-badge [meta]="meta" [size]="64" />
     <h1>Connect your first repository</h1>

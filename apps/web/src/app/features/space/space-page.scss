@@ -1,0 +1,343 @@
+:host {
+  display: block;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+.loading {
+  margin: 40px 0;
+  text-align: center;
+}
+.empty {
+  max-width: 620px;
+  margin: 48px auto;
+  padding: 36px;
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+
+  h1 {
+    font-size: 28px;
+    font-weight: 800;
+  }
+  p {
+    margin: 0;
+  }
+}
+
+.hero {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin: 8px 0 24px;
+
+  h1 {
+    font-size: clamp(28px, 3.4vw, 38px);
+    font-weight: 800;
+    overflow-wrap: anywhere;
+  }
+  p {
+    margin: 6px 0 0;
+  }
+}
+.hero-text {
+  flex: 1;
+  min-width: 0;
+}
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.icon-btn {
+  width: 32px;
+  padding: 0;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 16px;
+  align-items: start;
+}
+.main-col {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.agent-col {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+
+  app-agent-chat {
+    height: min(560px, calc(100dvh - 240px));
+    min-height: 420px;
+  }
+}
+.note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -6px 4px 0;
+  font-size: 12px;
+}
+
+/* Сводка: одно главное число и разбивки рядом; цифры — цветом текста, цвет несёт точка. */
+.summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px 32px;
+  padding: 22px 24px;
+}
+.headline {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  font-size: 13px;
+}
+.figure {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.scanned {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.severities,
+.modules,
+.repo-sev {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.severities {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+
+  li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: 7px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--glass);
+    font-size: 12px;
+  }
+  .num {
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .faint {
+    grid-column: 1 / -1;
+  }
+}
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--sev-info);
+
+  &[data-sev='critical'] {
+    background: var(--sev-critical);
+  }
+  &[data-sev='high'] {
+    background: var(--sev-high);
+  }
+  &[data-sev='medium'] {
+    background: var(--sev-medium);
+  }
+  &[data-sev='low'] {
+    background: var(--sev-low);
+  }
+}
+.modules {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--glass-border);
+  font-size: 13px;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  strong {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.section-title {
+  margin: 8px 0 12px;
+  font-size: 17px;
+}
+.empty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  box-shadow: none;
+
+  p {
+    margin: 0;
+  }
+}
+.repo-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.repo {
+  display: grid;
+  gap: 12px;
+  align-content: space-between;
+  padding: 16px;
+  box-shadow: none;
+}
+.repo-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+.repo-icon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--glass-strong);
+}
+.repo-name {
+  min-width: 0;
+  display: grid;
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+.meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.status {
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--glass-strong);
+
+  &[data-status='failed'] {
+    color: var(--sev-critical);
+  }
+}
+.repo-sev {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  min-height: 20px;
+  font-size: 12px;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .num {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+}
+.repo-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card {
+  padding: 18px;
+
+  h3 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 12px;
+    font-size: 15px;
+  }
+}
+.more {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-b);
+  text-decoration: none;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+
+  p {
+    margin: 0;
+  }
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.danger {
+  border: none;
+  color: #fff;
+  background: var(--sev-critical);
+
+  &:hover {
+    background: var(--sev-critical);
+    filter: brightness(1.08);
+  }
+}
+
+@media (max-width: 1180px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .agent-col {
+    position: static;
+  }
+}
+@media (max-width: 760px) {
+  .hero {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .hero-actions {
+    width: 100%;
+  }
+  .summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .severities {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
